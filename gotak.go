@@ -67,6 +67,7 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// ShowGameHandler takes a given UUID, looks up the game (if it exists) and returns the current grid
 func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
