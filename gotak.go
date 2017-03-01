@@ -30,6 +30,9 @@ type Board struct {
 	grid [][]Stack
 }
 
+// I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
+var gameIndex = make(map[uuid.UUID]Board)
+
 // MakeGameBoard takes an integer size and returns a Board
 func MakeGameBoard(size int) Board {
 	// each board gets a unique, random UUIDv4
@@ -45,17 +48,18 @@ func MakeGameBoard(size int) Board {
 	}
 
 	newBoard := Board{newUUID, newGrid}
-
+	gameIndex[newUUID] = newBoard
 	return newBoard
 }
 
 // NewGameHandler will generate a new board with a specified size and return the UUID by which will be known throughout its short, happy life.
 func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	if boardsize, err := strconv.Atoi(vars["boardsize"]); err == nil {
+
+	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
 		newGame := MakeGameBoard(boardsize)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Size: %v\n", vars["boardsize"])
+		fmt.Fprintf(w, "grid size: %v\n", vars["boardSize"])
 		fmt.Fprintf(w, "UUID: %v\n", newGame.uuid)
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -63,22 +67,42 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
+
+		if requestedGame, ok := gameIndex[gameID]; ok == true {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprintf(w, "requested game: %v\n", requestedGame)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "requested game not found: %v", gameID)
+		}
+
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "requested game ID not understood: %v", gameID)
+
+	}
+
+}
+
 func main() {
-	// I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
-	gameIndex := make(map[uuid.UUID]Board)
 
-	testBoard := MakeGameBoard(2)
-	firstPiece := Piece{"white", "flat"}
-	secondPiece := Piece{"black", "flat"}
-	testBoard.grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
-
-	gameIndex[testBoard.uuid] = testBoard
-	fmt.Println(gameIndex[testBoard.uuid])
+	// // let's just test out our kit, here
+	// testBoard := MakeGameBoard(5)
+	// firstPiece := Piece{"white", "flat"}
+	// secondPiece := Piece{"black", "flat"}
+	// testBoard.grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
+	//
+	// gameIndex[testBoard.uuid] = testBoard
+	// // fmt.Println(gameIndex[testBoard.uuid])
 
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
 	r.HandleFunc("/", SlashHandler)
-	r.HandleFunc("/newgame/{boardsize}", NewGameHandler)
+	r.HandleFunc("/newgame/{boardSize}", NewGameHandler)
+	r.HandleFunc("/showgame/{gameID}", ShowGameHandler)
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":8000", r))
