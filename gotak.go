@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+
+	"github.com/gorilla/mux"
 	// "github.com/satori/go.uuid"
 )
 
+// Piece is the most basic element of a Tak game. One of two colors; one of three types.
 type Piece struct {
 	// one of "black" or "white"
 	Color string
@@ -13,6 +17,7 @@ type Piece struct {
 	Type string
 }
 
+// Stack is probably a needless piece of structure; it's just a slice of Pieces
 type Stack struct {
 	// the top of the stack is at [0]
 	Pieces []Piece
@@ -22,30 +27,32 @@ func SlashHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Gorilla!\n"))
 }
 
-func MakeGameBoard(size int) [][]string {
+// MakeGameBoard takes an integer size and returns a slice of slices of Stacks
+func MakeGameBoard(size int) [][]Stack {
 
-	board := make([][]string, size, size)
+	board := make([][]Stack, size, size)
 
 	for i := 0; i < size; i++ {
-		fmt.Println("i is ", i)
-		row := make([]string, size, size)
+		row := make([]Stack, size, size)
 		board[i] = row
 	}
-	fmt.Println(board)
 	return board
 }
 
 func main() {
 
-	foo := MakeGameBoard(8)
-	foo[1][1] = "X"
-	fmt.Println(foo)
+	firstBoard := MakeGameBoard(3)
+	firstPiece := Piece{"white", "flat"}
+	secondPiece := Piece{"black", "flat"}
 
-	// r := mux.NewRouter()
-	// // Routes consist of a path and a handler function.
-	// r.HandleFunc("/", SlashHandler)
-	// r.HandleFunc("/newgam", SlashHandler)
-	//
-	// // Bind to a port and pass our router in
-	// log.Fatal(http.ListenAndServe(":8000", r))
+	firstBoard[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
+	fmt.Println(firstBoard)
+
+	r := mux.NewRouter()
+	// Routes consist of a path and a handler function.
+	r.HandleFunc("/", SlashHandler)
+	r.HandleFunc("/newgam", SlashHandler)
+
+	// Bind to a port and pass our router in
+	log.Fatal(http.ListenAndServe(":8000", r))
 }
