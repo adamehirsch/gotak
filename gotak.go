@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -44,10 +45,14 @@ func MakeGameBoard(size int) Board {
 	// ... then populate with the columns of spaces
 	for i := 0; i < size; i++ {
 		row := make([]Stack, size, size)
+		for j := 0; j < size; j++ {
+			row[j] = Stack{[]Piece{Piece{"white", "standing"}, Piece{"white", "flat"}}}
+		}
 		newGrid[i] = row
 	}
 
-	newBoard := Board{newUUID, newGrid}
+	newBoard := Board{uuid: newUUID, grid: newGrid}
+
 	gameIndex[newUUID] = newBoard
 	return newBoard
 }
@@ -75,6 +80,7 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 		if requestedGame, ok := gameIndex[gameID]; ok == true {
 			w.WriteHeader(http.StatusOK)
 			fmt.Fprintf(w, "requested game: %v\n", requestedGame)
+
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "requested game not found: %v", gameID)
@@ -90,14 +96,19 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	// // let's just test out our kit, here
-	// testBoard := MakeGameBoard(5)
-	// firstPiece := Piece{"white", "flat"}
-	// secondPiece := Piece{"black", "flat"}
-	// testBoard.grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
-	//
-	// gameIndex[testBoard.uuid] = testBoard
-	// // fmt.Println(gameIndex[testBoard.uuid])
+	// let's just test out our kit, here
+	testBoard := MakeGameBoard(5)
+	firstPiece := Piece{"white", "flat"}
+	secondPiece := Piece{"black", "flat"}
+	testBoard.grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
+
+	gameIndex[testBoard.uuid] = testBoard
+	if jBoard, err := json.Marshal(testBoard.grid[0][0].pieces[0]); err == nil {
+		fmt.Println("json marshalled: ", jBoard)
+		fmt.Println("direct printed: ", testBoard.grid[0][0].pieces[0])
+		fmt.Println("stringified: ", string(jBoard[:]))
+	}
+	// fmt.Println(gameIndex[testBoard.uuid])
 
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
