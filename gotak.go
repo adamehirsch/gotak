@@ -14,21 +14,21 @@ import (
 // Piece is the most basic element of a Tak game. One of two colors; one of three types.
 type Piece struct {
 	// one of "black" or "white"
-	color string
+	Color string
 	// Type can be one of "flat", "standing", or "capstone"
-	orientation string
+	Orientation string
 }
 
 // Stack is potentially a needless piece of structure; it's just a slice of Pieces... so maybe I could/should just refer to []Piece instead of having a distinct struct for it
 type Stack struct {
 	// the top of the stack is at [0]
-	pieces []Piece
+	Pieces []Piece
 }
 
 // Board is an NxN grid of spaces, optionally occupied by Stacks of Pieces. A given Board has a guaranteed unique uuid
 type Board struct {
-	uuid uuid.UUID
-	grid [][]Stack
+	BoardID uuid.UUID
+	Grid    [][]Stack
 }
 
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
@@ -45,13 +45,10 @@ func MakeGameBoard(size int) Board {
 	// ... then populate with the columns of spaces
 	for i := 0; i < size; i++ {
 		row := make([]Stack, size, size)
-		for j := 0; j < size; j++ {
-			row[j] = Stack{[]Piece{Piece{"white", "standing"}, Piece{"white", "flat"}}}
-		}
 		newGrid[i] = row
 	}
 
-	newBoard := Board{uuid: newUUID, grid: newGrid}
+	newBoard := Board{BoardID: newUUID, Grid: newGrid}
 
 	gameIndex[newUUID] = newBoard
 	return newBoard
@@ -65,7 +62,7 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 		newGame := MakeGameBoard(boardsize)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "grid size: %v\n", vars["boardSize"])
-		fmt.Fprintf(w, "UUID: %v\n", newGame.uuid)
+		fmt.Fprintf(w, "UUID: %v\n", newGame.BoardID)
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
@@ -78,9 +75,14 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
 
 		if requestedGame, ok := gameIndex[gameID]; ok == true {
+			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			fmt.Fprintf(w, "requested game: %v\n", requestedGame)
 
+			if jBoard, err := json.Marshal(requestedGame.Grid); err == nil {
+				w.Write(jBoard)
+
+				// fmt.Fprintf(w, "requested game: %v\n", requestedGame)
+			}
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "requested game not found: %v", gameID)
@@ -96,19 +98,20 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	// let's just test out our kit, here
-	testBoard := MakeGameBoard(5)
-	firstPiece := Piece{"white", "flat"}
-	secondPiece := Piece{"black", "flat"}
-	testBoard.grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
-
-	gameIndex[testBoard.uuid] = testBoard
-	if jBoard, err := json.Marshal(testBoard.grid[0][0].pieces[0]); err == nil {
-		fmt.Println("json marshalled: ", jBoard)
-		fmt.Println("direct printed: ", testBoard.grid[0][0].pieces[0])
-		fmt.Println("stringified: ", string(jBoard[:]))
-	}
-	// fmt.Println(gameIndex[testBoard.uuid])
+	// // let's just test out our kit, here
+	// testBoard := MakeGameBoard(5)
+	// firstPiece := Piece{"white", "flat"}
+	// secondPiece := Piece{"black", "flat"}
+	// testBoard.Grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
+	//
+	// gameIndex[testBoard.BoardID] = testBoard
+	// if jBoard, err := json.Marshal(testBoard.Grid[0][0].Pieces[0]); err == nil {
+	// 	fmt.Println("json marshalled: ", jBoard)
+	// 	fmt.Printf("%s\n", jBoard)
+	// 	fmt.Printf("direct printed fully specified: %+v\n", testBoard.Grid[0][0].Pieces[0])
+	// 	fmt.Printf("direct printed testBoard: %+v\n", testBoard.Grid[0][0])
+	// }
+	// // fmt.Println(gameIndex[testBoard.uuid])
 
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
