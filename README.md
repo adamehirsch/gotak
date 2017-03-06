@@ -32,8 +32,8 @@ More of a "Baby's First Golang" project, really, than anything serious. An attem
       - move may not cross a standing stone
         - UNLESS it's a capstone, by itself, landing on a standing stone
         - in which case the standing stone changes its orientation to "flat"
-- Game end conditions
-  - player has not run out of stones
+- Game end detection
+  - player has run out of stones
   - board has no blank spaces left
   - board has a road
   - board has a road for each player (unusual end condition, win goes to active player)
