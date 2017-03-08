@@ -73,13 +73,31 @@ var LetterMap = map[string]int{
 	"m": 12,
 }
 
+// Place descripts the necessary aspects to describe an action that places a new piece on the board
+type Place struct {
+	Piece  Piece
+	Coords string
+}
+
+// Move contains the necessary aspects to describe an action that moves a stack.
+type Move struct {
+	Coords    string
+	Direction string
+	Carry     int
+	Delivery  []int
+}
+
 // CheckSquare looks at a given spot on a given board and returns either a Stack, nil, or an err
 func (board Board) CheckSquare(coords string) (Stack, error) {
 	grid := board.Grid
 
+	// looking for coordinates in the form LetterNumber
 	r := regexp.MustCompile("^([a-zA-Z])([1-9]|[12][0-9])$")
+
 	validcoords := r.FindAllStringSubmatch(coords, -1)
+
 	if len(validcoords) > 0 {
+
 		// Assuming we've got a valid looking set of coordinates, look them up on the provided board
 		rank := LetterMap[validcoords[0][1]]
 		file, err := strconv.Atoi(validcoords[0][2])
@@ -97,23 +115,7 @@ func (board Board) CheckSquare(coords string) (Stack, error) {
 		foundStack := grid[rank][file]
 		return foundStack, nil
 	}
-
-	return Stack{}, errors.New("foobar")
-
-}
-
-// Place descripts the necessary aspects to describe an action that places a new piece on the board
-type Place struct {
-	Piece  Piece
-	Coords string
-}
-
-// Move contains the necessary aspects to describe an action that moves a stack.
-type Move struct {
-	Coords    string
-	Direction string
-	Carry     int
-	Delivery  []int
+	return Stack{}, fmt.Errorf("Could not interpret coordinates '%v'", coords)
 }
 
 func main() {

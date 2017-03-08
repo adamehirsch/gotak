@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestBoardLimits(t *testing.T) {
+func TestBoardSizeLimits(t *testing.T) {
 	testBoard := MakeGameBoard(5)
 	firstPiece := Piece{"white", "flat"}
 	secondPiece := Piece{"black", "flat"}
@@ -15,6 +15,7 @@ func TestBoardLimits(t *testing.T) {
 	testBoard.Grid[0][2] = Stack{[]Piece{firstPiece, thirdPiece}}
 	testBoard.Grid[3][3] = Stack{[]Piece{thirdPiece, secondPiece}}
 
+	// case-driven testing: The Bomb
 	cases := []struct {
 		coords  string
 		stack   Stack
@@ -36,8 +37,4 @@ func TestBoardLimits(t *testing.T) {
 			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.coords, err, c.problem)
 		}
 	}
-
-	// if err != nil {
-	// 	t.Errorf("Problem with coordinates %v: %v", testCoords, err)
-	// }
 }
