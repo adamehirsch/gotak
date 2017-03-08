@@ -144,11 +144,7 @@ func (board Board) PlacePiece(coords string, pieceToPlace Piece) (Board, error) 
 		}
 		if rank, file, err := board.TranslateCoords(coords); err == nil {
 			square := board.Grid[rank][file]
-			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces)
-			// // this is an interesting way to prepend something to a slice.
-			// square.Pieces = append(square.Pieces, Piece{})
-			// copy(square.Pieces[1:], square.Pieces)
-			// square.Pieces[0] = pieceToPlace
+			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
 			return board, nil
 		}
 		return Board{}, fmt.Errorf("Could not place piece at %v: %v", coords, err)
