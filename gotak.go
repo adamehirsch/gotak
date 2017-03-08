@@ -74,22 +74,22 @@ var LetterMap = map[string]int{
 	"m": 12,
 }
 
-// Place descripts the necessary aspects to describe an action that places a new piece on the board
-type Place struct {
+// Placement descripts the necessary aspects to describe an action that places a new piece on the board
+type Placement struct {
 	Piece  Piece  `json:"piece"`
 	Coords string `json:"coords"`
 }
 
-// Move contains the necessary aspects to describe an action that moves a stack.
-type Move struct {
+// Movement contains the necessary aspects to describe an action that moves a stack.
+type Movement struct {
 	Coords     string `json:"coords"`
 	Direction  string `json:"direction"`
 	Carry      int    `json:"carry"`
 	Deliveries []int  `json:"deliveries"`
 }
 
-// CheckSquare looks at a given spot on a given board and returns either a Stack, nil, or an err
-func (board Board) CheckSquare(coords string) (Stack, error) {
+// TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
+func (board Board) TranslateCoords(coords string) (rank int, file int, error error) {
 	grid := board.Grid
 
 	// looking for coordinates in the form LetterNumber
@@ -98,25 +98,31 @@ func (board Board) CheckSquare(coords string) (Stack, error) {
 	validcoords := r.FindAllStringSubmatch(coords, -1)
 
 	if len(validcoords) > 0 {
-
 		// Assuming we've got a valid looking set of coordinates, look them up on the provided board
 		rank := LetterMap[validcoords[0][1]]
 		file, err := strconv.Atoi(validcoords[0][2])
-
 		switch {
 		case err != nil:
-			return Stack{}, errors.New("cannot interpret coordinates")
+			return -1, -1, errors.New("cannot interpret coordinates")
 		case rank >= len(grid) || file-1 >= len(grid):
-			return Stack{}, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], len(grid))
+			return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], len(grid))
 		}
-
 		// arrays start with [0], so subtract one from the human-readable rank
 		file = file - 1
+		return rank, file, nil
+	}
+	return -1, -1, fmt.Errorf("Could not interpret coordinates '%v'", coords)
+}
 
+// CheckSquare looks at a given spot on a given board and returns what's there
+func (board Board) CheckSquare(coords string) (Stack, error) {
+	grid := board.Grid
+	rank, file, err := board.TranslateCoords(coords)
+	if err == nil {
 		foundStack := grid[rank][file]
 		return foundStack, nil
 	}
-	return Stack{}, fmt.Errorf("Could not interpret coordinates '%v'", coords)
+	return Stack{}, err
 }
 
 // SquareIsEmpty returns a simple boolean to test if a square is empty
@@ -124,12 +130,30 @@ func (board Board) SquareIsEmpty(coords string) (bool, error) {
 	if foundStack, err := board.CheckSquare(coords); err == nil {
 		if reflect.DeepEqual(foundStack, Stack{}) {
 			return true, nil
-		} else {
-			return false, nil
 		}
+		return false, nil
 	}
 	return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
+}
 
+// PlacePiece should put a Piece at a valid board position and return the updated board
+func (board Board) PlacePiece(coords string, pieceToPlace Piece) (Board, error) {
+	if empty, err := board.SquareIsEmpty(coords); err == nil {
+		if empty == false {
+			return Board{}, fmt.Errorf("Could not place piece at occupied square %v", coords)
+		}
+		if rank, file, err := board.TranslateCoords(coords); err == nil {
+			square := board.Grid[rank][file]
+			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces)
+			// // this is an interesting way to prepend something to a slice.
+			// square.Pieces = append(square.Pieces, Piece{})
+			// copy(square.Pieces[1:], square.Pieces)
+			// square.Pieces[0] = pieceToPlace
+			return board, nil
+		}
+		return Board{}, fmt.Errorf("Could not place piece at %v: %v", coords, err)
+	}
+	return Board{}, fmt.Errorf("Could not place piece at %v", coords)
 }
 
 func main() {
