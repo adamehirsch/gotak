@@ -1,10 +1,11 @@
 package main
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"strconv"
 
 	"github.com/gorilla/mux"
@@ -36,6 +37,7 @@ var gameIndex = make(map[uuid.UUID]Board)
 
 // MakeGameBoard takes an integer size and returns a Board
 func MakeGameBoard(size int) Board {
+
 	// each board gets a unique, random UUIDv4
 	newUUID := uuid.NewV4()
 
@@ -54,64 +56,67 @@ func MakeGameBoard(size int) Board {
 	return newBoard
 }
 
-// NewGameHandler will generate a new board with a specified size and return the UUID by which will be known throughout its short, happy life.
-func NewGameHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+// LetterMap converts Tak files to their index value
+var LetterMap = map[string]int{
+	"a": 0,
+	"b": 1,
+	"c": 2,
+	"d": 3,
+	"e": 4,
+	"f": 5,
+	"g": 6,
+	"h": 7,
+	"i": 8,
+	"j": 9,
+	"k": 10,
+	"l": 11,
+	"m": 12,
+}
 
-	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
-		newGame := MakeGameBoard(boardsize)
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "grid size: %v\n", vars["boardSize"])
-		fmt.Fprintf(w, "UUID: %v\n", newGame.BoardID)
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
+// CheckSquare looks at a given spot on a given board and returns either a Stack, nil, or an err
+func (board Board) CheckSquare(coords string) (Stack, error) {
+	grid := board.Grid
+
+	r := regexp.MustCompile("^([a-zA-Z])([1-9]|[12][0-9])$")
+	validcoords := r.FindAllStringSubmatch(coords, -1)
+	if len(validcoords) > 0 {
+		// Assuming we've got a valid looking set of coordinates, look them up on the provided board
+		rank := LetterMap[validcoords[0][1]]
+		file, err := strconv.Atoi(validcoords[0][2])
+
+		switch {
+		case err != nil:
+			return Stack{}, errors.New("cannot interpret coordinates")
+		case rank >= len(grid) || file-1 >= len(grid):
+			return Stack{}, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], len(grid))
+		}
+
+		// arrays start with [0], so subtract one from the human-readable rank
+		file = file - 1
+
+		foundStack := grid[rank][file]
+		return foundStack, nil
 	}
+
+	return Stack{}, errors.New("foobar")
 
 }
 
-// ShowGameHandler takes a given UUID, looks up the game (if it exists) and returns the current grid
-func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
+// Place descripts the necessary aspects to describe an action that places a new piece on the board
+type Place struct {
+	Piece  Piece
+	Coords string
+}
 
-		if requestedGame, ok := gameIndex[gameID]; ok == true {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-
-			if jBoard, err := json.Marshal(requestedGame.Grid); err == nil {
-				w.Write(jBoard)
-
-				// fmt.Fprintf(w, "requested game: %v\n", requestedGame)
-			}
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "requested game not found: %v", gameID)
-		}
-
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "requested game ID not understood: %v", gameID)
-
-	}
-
+// Move contains the necessary aspects to describe an action that moves a stack.
+type Move struct {
+	Coords    string
+	Direction string
+	Carry     int
+	Delivery  []int
 }
 
 func main() {
-
-	// // let's just test out our kit, here
-	// testBoard := MakeGameBoard(5)
-	// firstPiece := Piece{"white", "flat"}
-	// secondPiece := Piece{"black", "flat"}
-	// testBoard.Grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
-	//
-	// gameIndex[testBoard.BoardID] = testBoard
-	// if jBoard, err := json.Marshal(testBoard.Grid[0][0].Pieces[0]); err == nil {
-	// 	fmt.Println("json marshalled: ", jBoard)
-	// 	fmt.Printf("%s\n", jBoard)
-	// 	fmt.Printf("direct printed fully specified: %+v\n", testBoard.Grid[0][0].Pieces[0])
-	// 	fmt.Printf("direct printed testBoard: %+v\n", testBoard.Grid[0][0])
-	// }
-	// // fmt.Println(gameIndex[testBoard.uuid])
 
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
@@ -121,9 +126,4 @@ func main() {
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":8000", r))
-}
-
-// SlashHandler will be a slim handler to present some canned HTML for humans to read
-func SlashHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("GOTAK!\n"))
 }
