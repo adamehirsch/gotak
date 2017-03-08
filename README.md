@@ -10,7 +10,6 @@ More of a "Baby's First Golang" project, really, than anything serious. An attem
 - Concept of a player
   - has a color (black or white)
   - has some kind of authentication, someday
-- Parser for *Portable Tak Notation* (PTN) https://www.reddit.com/r/Tak/wiki/portable_tak_notation
 - Player actions
   - PLACE
     - needed info:
@@ -42,3 +41,4 @@ More of a "Baby's First Golang" project, really, than anything serious. An attem
   - on a successful move, atomically save the board state (and history?) to disk
 - authentication
   - cookies
+- Hoo, boy: an actual Parser for *Portable Tak Notation* (PTN) https://www.reddit.com/r/Tak/wiki/portable_tak_notation

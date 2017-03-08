@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"reflect"
 	"regexp"
 	"strconv"
 
@@ -15,9 +16,9 @@ import (
 // Piece is the most basic element of a Tak game. One of two colors; one of three types.
 type Piece struct {
 	// one of "black" or "white"
-	Color string
+	Color string `json:"color"`
 	// Type can be one of "flat", "standing", or "capstone"
-	Orientation string
+	Orientation string `json:"orientation"`
 }
 
 // Stack is potentially a needless piece of structure; it's just a slice of Pieces... so maybe I could/should just refer to []Piece instead of having a distinct struct for it
@@ -75,16 +76,16 @@ var LetterMap = map[string]int{
 
 // Place descripts the necessary aspects to describe an action that places a new piece on the board
 type Place struct {
-	Piece  Piece
-	Coords string
+	Piece  Piece  `json:"piece"`
+	Coords string `json:"coords"`
 }
 
 // Move contains the necessary aspects to describe an action that moves a stack.
 type Move struct {
-	Coords    string
-	Direction string
-	Carry     int
-	Delivery  []int
+	Coords     string `json:"coords"`
+	Direction  string `json:"direction"`
+	Carry      int    `json:"carry"`
+	Deliveries []int  `json:"deliveries"`
 }
 
 // CheckSquare looks at a given spot on a given board and returns either a Stack, nil, or an err
@@ -118,6 +119,19 @@ func (board Board) CheckSquare(coords string) (Stack, error) {
 	return Stack{}, fmt.Errorf("Could not interpret coordinates '%v'", coords)
 }
 
+// SquareIsEmpty returns a simple boolean to test if a square is empty
+func (board Board) SquareIsEmpty(coords string) (bool, error) {
+	if foundStack, err := board.CheckSquare(coords); err == nil {
+		if reflect.DeepEqual(foundStack, Stack{}) {
+			return true, nil
+		} else {
+			return false, nil
+		}
+	}
+	return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
+
+}
+
 func main() {
 
 	r := mux.NewRouter()
@@ -125,6 +139,7 @@ func main() {
 	r.HandleFunc("/", SlashHandler)
 	r.HandleFunc("/newgame/{boardSize}", NewGameHandler)
 	r.HandleFunc("/showgame/{gameID}", ShowGameHandler)
+	r.HandleFunc("/place/{gameID}", PlaceMoveHandler).Methods("PUT")
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":8000", r))

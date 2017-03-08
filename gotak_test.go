@@ -38,3 +38,38 @@ func TestBoardSizeLimits(t *testing.T) {
 		}
 	}
 }
+
+// verify that
+func TestBoardSquareEmpty(t *testing.T) {
+	testBoard := MakeGameBoard(5)
+	firstPiece := Piece{"white", "flat"}
+	secondPiece := Piece{"black", "flat"}
+	thirdPiece := Piece{"white", "capstone"}
+	testBoard.Grid[1][0] = Stack{[]Piece{firstPiece, secondPiece}}
+	testBoard.Grid[0][4] = Stack{[]Piece{firstPiece, thirdPiece}}
+	testBoard.Grid[3][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+
+	// case-driven testing: The Bomb
+	cases := []struct {
+		Coords  string
+		Empty   bool
+		Problem error
+	}{
+		{"b1", false, nil},
+		{"a5", false, nil},
+		{"b2", true, nil},
+		{"f1", false, errors.New("Could not interpret coordinates 'f1'")},
+	}
+
+	for _, c := range cases {
+		isEmpty, err := testBoard.SquareIsEmpty(c.Coords)
+
+		if reflect.DeepEqual(err, c.Problem) == false {
+			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.Coords, err, c.Problem)
+		}
+
+		if reflect.DeepEqual(isEmpty, c.Empty) == false {
+			t.Errorf("Returned stack from coords %v was %v: wanted %v\n", c.Coords, isEmpty, c.Empty)
+		}
+	}
+}
