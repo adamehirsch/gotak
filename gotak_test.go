@@ -58,7 +58,7 @@ func TestBoardSquareEmpty(t *testing.T) {
 		{"b1", false, nil},
 		{"a5", false, nil},
 		{"b2", true, nil},
-		{"f1", false, errors.New("Could not interpret coordinates 'f1'")},
+		{"f1", false, errors.New("Problem at coordinates 'f1': coordinates 'f1' larger than board size: 5")},
 	}
 
 	for _, c := range cases {
@@ -71,5 +71,35 @@ func TestBoardSquareEmpty(t *testing.T) {
 		if reflect.DeepEqual(isEmpty, c.Empty) == false {
 			t.Errorf("Returned stack from coords %v was %v: wanted %v\n", c.Coords, isEmpty, c.Empty)
 		}
+	}
+}
+
+func TestNoPlacementOnOccupiedSquare(t *testing.T) {
+	testBoard := MakeGameBoard(5)
+	firstPiece := Piece{"white", "flat"}
+	secondPiece := Piece{"black", "flat"}
+	thirdPiece := Piece{"white", "capstone"}
+	testBoard.Grid[1][0] = Stack{[]Piece{firstPiece, secondPiece}}
+	testBoard.Grid[0][4] = Stack{[]Piece{firstPiece, thirdPiece}}
+	testBoard.Grid[3][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+
+	// case-driven testing: The Bomb
+	cases := []struct {
+		Coords  string
+		Problem error
+	}{
+		{"b1", errors.New("Could not place piece at occupied square b1")},
+		{"a5", errors.New("Could not place piece at occupied square a5")},
+		{"b2", nil},
+		{"h1", errors.New("Could not place piece at h1: Problem at coordinates 'h1': coordinates 'h1' larger than board size: 5")},
+	}
+
+	for _, c := range cases {
+		err := testBoard.PlacePiece(c.Coords, secondPiece)
+
+		if reflect.DeepEqual(err, c.Problem) == false {
+			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.Coords, err, c.Problem)
+		}
+
 	}
 }

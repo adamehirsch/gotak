@@ -149,8 +149,10 @@ func (b *Board) SquareIsEmpty(coords string) (bool, error) {
 			return true, nil
 		}
 		return false, nil
+	} else {
+		// return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
+		return false, fmt.Errorf("Problem at coordinates '%v': %v", coords, err)
 	}
-	return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
 }
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
@@ -163,9 +165,12 @@ func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
 			square := &b.Grid[rank][file]
 			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
 			return nil
+		} else {
+			return err
 		}
+	} else {
+		return fmt.Errorf("Could not place piece at %v: %v", coords, err)
 	}
-	return fmt.Errorf("Could not place piece at %v", coords)
 }
 
 func main() {
