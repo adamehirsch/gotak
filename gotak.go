@@ -89,8 +89,8 @@ type Movement struct {
 }
 
 // TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
-func (board Board) TranslateCoords(coords string) (rank int, file int, error error) {
-	grid := board.Grid
+func (b *Board) TranslateCoords(coords string) (rank int, file int, error error) {
+	grid := b.Grid
 
 	// looking for coordinates in the form LetterNumber
 	r := regexp.MustCompile("^([a-zA-Z])([1-9]|[12][0-9])$")
@@ -115,19 +115,19 @@ func (board Board) TranslateCoords(coords string) (rank int, file int, error err
 }
 
 // CheckSquare looks at a given spot on a given board and returns what's there
-func (board Board) CheckSquare(coords string) (Stack, error) {
-	grid := board.Grid
-	rank, file, err := board.TranslateCoords(coords)
-	if err == nil {
-		foundStack := grid[rank][file]
-		return foundStack, nil
+func (b Board) CheckSquare(coords string) (Stack, error) {
+	grid := b.Grid
+	rank, file, err := b.TranslateCoords(coords)
+	if err != nil {
+		return Stack{}, err
 	}
-	return Stack{}, err
+	foundStack := grid[rank][file]
+	return foundStack, nil
 }
 
-// SquareIsEmpty returns a simple boolean to test if a square is empty
-func (board Board) SquareIsEmpty(coords string) (bool, error) {
-	if foundStack, err := board.CheckSquare(coords); err == nil {
+// SquareIsEmpty returns a simple boolean to signal if ... wait for it ... a square is empty
+func (b *Board) SquareIsEmpty(coords string) (bool, error) {
+	if foundStack, err := b.CheckSquare(coords); err == nil {
 		if reflect.DeepEqual(foundStack, Stack{}) {
 			return true, nil
 		}
@@ -137,19 +137,18 @@ func (board Board) SquareIsEmpty(coords string) (bool, error) {
 }
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
-func (board *Board) PlacePiece(coords string, pieceToPlace Piece) (Board, error) {
-	if empty, err := board.SquareIsEmpty(coords); err == nil {
+func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
+	if empty, err := b.SquareIsEmpty(coords); err == nil {
 		if empty == false {
-			return Board{}, fmt.Errorf("Could not place piece at occupied square %v", coords)
+			return fmt.Errorf("Could not place piece at occupied square %v", coords)
 		}
-		if rank, file, err := board.TranslateCoords(coords); err == nil {
-			square := board.Grid[rank][file]
+		if rank, file, err := b.TranslateCoords(coords); err == nil {
+			square := b.Grid[rank][file]
 			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
-			return *board, nil
+			return nil
 		}
-		return Board{}, fmt.Errorf("Could not place piece at %v: %v", coords, err)
 	}
-	return Board{}, fmt.Errorf("Could not place piece at %v", coords)
+	return fmt.Errorf("Could not place piece at %v", coords)
 }
 
 func main() {

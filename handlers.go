@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -62,28 +63,24 @@ func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) {
 
 	// read in only up to 1MB of data from the client. Come on, now.
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-
-	if err := r.Body.Close(); err != nil {
-		panic(err)
+	if closeError := r.Body.Close(); closeError != nil {
+		log.Fatal(closeError)
 	}
 
 	var placement Placement
-
-	if err := json.Unmarshal(body, &placement); err == nil {
+	if unmarshalError := json.Unmarshal(body, &placement); unmarshalError != nil {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(422) // unprocessable entity
-		if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
+		if encodeErr := json.NewEncoder(w).Encode(unmarshalError); encodeErr != nil {
 			panic(encodeErr)
 		}
 		return
 	}
 
 	vars := mux.Vars(r)
-
 	gameID, err := uuid.FromString(vars["gameID"])
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -92,36 +89,21 @@ func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	requestedGame, ok := gameIndex[gameID]
-
 	if ok != true {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "requested game not found: %v", gameID)
 		return
 	}
 
-	empty, err := requestedGame.SquareIsEmpty(placement.Coords)
-
-	if err != nil {
-		// if there was some problem checking the square, punt
-		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-		w.WriteHeader(422) // unprocessable entity
-		if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
-			panic(encodeErr)
-		}
+	if err := requestedGame.PlacePiece(placement.Coords, placement.Piece); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "problem placing piece at %v: %v", placement.Coords, err)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(requestedGame.Grid)
 
-	if empty == true {
-		if updatedBoard, err := requestedGame.PlacePiece(placement.Coords, placement.Piece); err == nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-		}
-	}
-
-	// write back updated grid
-	if err := json.NewEncoder(w).Encode(requestedGame.Grid); err != nil {
-		panic(err)
-	}
 }
 
 // // testing: write back placement order
