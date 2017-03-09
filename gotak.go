@@ -137,7 +137,7 @@ func (board Board) SquareIsEmpty(coords string) (bool, error) {
 }
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
-func (board Board) PlacePiece(coords string, pieceToPlace Piece) (Board, error) {
+func (board *Board) PlacePiece(coords string, pieceToPlace Piece) (Board, error) {
 	if empty, err := board.SquareIsEmpty(coords); err == nil {
 		if empty == false {
 			return Board{}, fmt.Errorf("Could not place piece at occupied square %v", coords)
@@ -145,7 +145,7 @@ func (board Board) PlacePiece(coords string, pieceToPlace Piece) (Board, error) 
 		if rank, file, err := board.TranslateCoords(coords); err == nil {
 			square := board.Grid[rank][file]
 			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
-			return board, nil
+			return *board, nil
 		}
 		return Board{}, fmt.Errorf("Could not place piece at %v: %v", coords, err)
 	}

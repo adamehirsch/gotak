@@ -58,62 +58,77 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PlaceMoveHandler will accept a JSON Placement for a particular game, execute it if the space is empty, and then return the updated grid
-
 func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
 
-		if requestedGame, ok := gameIndex[gameID]; ok == true {
-			var placement Placement
+	// read in only up to 1MB of data from the client. Come on, now.
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 
-			// read in only up to 1MB of data. Come on, now.
-			body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-			if err != nil {
-				panic(err)
-			}
-			if err := r.Body.Close(); err != nil {
-				panic(err)
-			}
-
-			if err := json.Unmarshal(body, &placement); err != nil {
-				w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-				w.WriteHeader(422) // unprocessable entity
-				if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
-					panic(encodeErr)
-				}
-			}
-
-			empty, err := requestedGame.SquareIsEmpty(placement.Coords)
-			if empty == true && err == nil {
-
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-
-			// write back updated grid
-			if err := json.NewEncoder(w).Encode(requestedGame.Grid); err != nil {
-				panic(err)
-			}
-
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "requested game not found: %v", gameID)
-		}
-
-	} else {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "requested game ID not understood: %v", gameID)
-
+	if err != nil {
+		panic(err)
 	}
 
-	// // write back placement order
-	//  {
-	// 	w.Header().Set("Content-Type", "application/json")
-	// 	w.WriteHeader(http.StatusOK)
-	// 	if err := json.NewEncoder(w).Encode(placement); err != nil {
-	// 		panic(err)
-	// 	}
-	// }
+	if err := r.Body.Close(); err != nil {
+		panic(err)
+	}
 
+	var placement Placement
+
+	if err := json.Unmarshal(body, &placement); err == nil {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(422) // unprocessable entity
+		if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
+			panic(encodeErr)
+		}
+		return
+	}
+
+	vars := mux.Vars(r)
+
+	gameID, err := uuid.FromString(vars["gameID"])
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "requested game ID not understood: %v", gameID)
+		return
+	}
+
+	requestedGame, ok := gameIndex[gameID]
+
+	if ok != true {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "requested game not found: %v", gameID)
+		return
+	}
+
+	empty, err := requestedGame.SquareIsEmpty(placement.Coords)
+
+	if err != nil {
+		// if there was some problem checking the square, punt
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(422) // unprocessable entity
+		if encodeErr := json.NewEncoder(w).Encode(err); encodeErr != nil {
+			panic(encodeErr)
+		}
+		return
+	}
+
+	if empty == true {
+		if updatedBoard, err := requestedGame.PlacePiece(placement.Coords, placement.Piece); err == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+		}
+	}
+
+	// write back updated grid
+	if err := json.NewEncoder(w).Encode(requestedGame.Grid); err != nil {
+		panic(err)
+	}
 }
+
+// // testing: write back placement order
+//  {
+// 	w.Header().Set("Content-Type", "application/json")
+// 	w.WriteHeader(http.StatusOK)
+// 	if err := json.NewEncoder(w).Encode(placement); err != nil {
+// 		panic(err)
+// 	}
+// }
