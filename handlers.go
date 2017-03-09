@@ -59,18 +59,18 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // PlaceMoveHandler will accept a JSON Placement for a particular game, execute it if the space is empty, and then return the updated grid
-func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *webError {
+func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	// get the gameID from the URL path
 	vars := mux.Vars(r)
 	gameID, err := uuid.FromString(vars["gameID"])
 	if err != nil {
-		return &webError{err, "Problem with game ID", http.StatusNotAcceptable}
+		return &WebError{err, "Problem with game ID", http.StatusNotAcceptable}
 	}
 
 	// fetch out and validate that we've got a game by that ID
 	requestedGame, ok := gameIndex[gameID]
 	if ok != true {
-		return &webError{err, "No such game found", http.StatusNotFound}
+		return &WebError{err, "No such game found", http.StatusNotFound}
 	}
 
 	// read in only up to 1MB of data from the client. Come on, now.
@@ -82,11 +82,11 @@ func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *webError {
 	// turn the submitted JSON into a Placement struct, if possible
 	var placement Placement
 	if unmarshalError := json.Unmarshal(body, &placement); unmarshalError != nil {
-		return &webError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
+		return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
 	}
 
 	if err := requestedGame.PlacePiece(placement.Coords, placement.Piece); err != nil {
-		return &webError{err, fmt.Sprintf("problem placing piece at %v: %v", placement.Coords, err), 409}
+		return &WebError{err, fmt.Sprintf("problem placing piece at %v: %v", placement.Coords, err), 409}
 	}
 
 	w.Header().Set("Content-Type", "application/json")

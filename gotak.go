@@ -88,14 +88,15 @@ type Movement struct {
 	Deliveries []int  `json:"deliveries"`
 }
 
-type webError struct {
+// WebError is a custom error type for reporting bad events when making an HTTP request
+type WebError struct {
 	Error   error
 	Message string
 	Code    int
 }
 
 // Let's try something out.
-type webHandler func(http.ResponseWriter, *http.Request) *webError
+type webHandler func(http.ResponseWriter, *http.Request) *WebError
 
 func (fn webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if e := fn(w, r); e != nil { // e is *webError, not os.Error.
