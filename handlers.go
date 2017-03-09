@@ -76,7 +76,7 @@ func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	// read in only up to 1MB of data from the client. Come on, now.
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 
 	// turn the submitted JSON into a Placement struct, if possible

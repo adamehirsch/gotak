@@ -131,7 +131,7 @@ func (b *Board) TranslateCoords(coords string) (rank int, file int, error error)
 }
 
 // CheckSquare looks at a given spot on a given board and returns what's there
-func (b Board) CheckSquare(coords string) (Stack, error) {
+func (b *Board) CheckSquare(coords string) (Stack, error) {
 	grid := b.Grid
 	rank, file, err := b.TranslateCoords(coords)
 	if err != nil {
@@ -146,10 +146,8 @@ func (b *Board) SquareIsEmpty(coords string) (bool, error) {
 	if foundStack, err := b.CheckSquare(coords); err == nil {
 		// is there only an empty Stack{} on that square? If so, it's empty.
 		if reflect.DeepEqual(foundStack, Stack{}) {
-			fmt.Printf("Stack %v is empty\n", foundStack)
 			return true, nil
 		}
-		fmt.Printf("Stack %v is not empty\n", foundStack)
 		return false, nil
 	}
 	return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
@@ -162,11 +160,8 @@ func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
 			return fmt.Errorf("Could not place piece at occupied square %v", coords)
 		}
 		if rank, file, err := b.TranslateCoords(coords); err == nil {
-			fmt.Printf("Placing %v at rank %v file %v\n", pieceToPlace, rank, file)
-			square := b.Grid[rank][file]
-			fmt.Printf("Pieces on that square before placement: %v\n", square.Pieces)
+			square := &b.Grid[rank][file]
 			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
-			fmt.Printf("Pieces on that square after placement: %v\n", square.Pieces)
 			return nil
 		}
 	}
@@ -180,8 +175,7 @@ func main() {
 	r.HandleFunc("/", SlashHandler)
 	r.HandleFunc("/newgame/{boardSize}", NewGameHandler)
 	r.HandleFunc("/showgame/{gameID}", ShowGameHandler)
-	//	r.HandleFunc("/place/{gameID}", PlaceMoveHandler).Methods("PUT")
-	r.Handle("/newplace/{gameID}", webHandler(PlaceMoveHandler)).Methods("PUT")
+	r.Handle("/place/{gameID}", webHandler(PlaceMoveHandler)).Methods("PUT")
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":8000", r))
