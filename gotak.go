@@ -151,6 +151,7 @@ func (b *Board) SquareIsEmpty(coords string) (bool, error) {
 		}
 		return false, nil
 	}
+	// return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
 	return false, fmt.Errorf("Problem at coordinates '%v': %v", coords, err)
 }
 
