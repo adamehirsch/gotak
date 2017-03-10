@@ -1,0 +1,9 @@
+image: golang:1.7
+
+test:
+  type: test
+  script:
+    - mkdir -p /go/src/gaudi.aaltohost.com/adam
+    - ln -s $PWD /go/src/gaudi.aaltohost.com/adam/gotak
+    - cd /go/src/gaudi.aaltohost.com/adam/gotak
+    - ./run_tests.sh

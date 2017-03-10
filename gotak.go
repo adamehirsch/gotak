@@ -143,21 +143,22 @@ func (b *Board) CheckSquare(coords string) (Stack, error) {
 
 // SquareIsEmpty returns a simple boolean to signal if ... wait for it ... a square is empty
 func (b *Board) SquareIsEmpty(coords string) (bool, error) {
-	if foundStack, err := b.CheckSquare(coords); err == nil {
+	foundStack, err := b.CheckSquare(coords)
+	if err == nil {
 		// is there only an empty Stack{} on that square? If so, it's empty.
 		if reflect.DeepEqual(foundStack, Stack{}) {
 			return true, nil
 		}
 		return false, nil
-	} else {
-		// return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
-		return false, fmt.Errorf("Problem at coordinates '%v': %v", coords, err)
 	}
+	// return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
+	return false, fmt.Errorf("Problem at coordinates '%v': %v", coords, err)
 }
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
 func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
-	if empty, err := b.SquareIsEmpty(coords); err == nil {
+	empty, err := b.SquareIsEmpty(coords)
+	if err == nil {
 		if empty == false {
 			return fmt.Errorf("Could not place piece at occupied square %v", coords)
 		}
@@ -165,12 +166,10 @@ func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
 			square := &b.Grid[rank][file]
 			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
 			return nil
-		} else {
-			return err
 		}
-	} else {
-		return fmt.Errorf("Could not place piece at %v: %v", coords, err)
+		return err
 	}
+	return fmt.Errorf("Could not place piece at %v: %v", coords, err)
 }
 
 func main() {
