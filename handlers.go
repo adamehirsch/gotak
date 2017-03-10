@@ -95,11 +95,40 @@ func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	return nil
 }
 
-// // testing: write back placement order
-//  {
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	if err := json.NewEncoder(w).Encode(placement); err != nil {
-// 		panic(err)
-// 	}
-// }
+// StackMoveHandler will accept a JSON Movement for a particular game, execute it if it's legal, and then return the updated grid
+
+func StackMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
+	// get the gameID from the URL path
+	vars := mux.Vars(r)
+	gameID, err := uuid.FromString(vars["gameID"])
+	if err != nil {
+		return &WebError{err, "Problem with game ID", http.StatusNotAcceptable}
+	}
+
+	// fetch out and validate that we've got a game by that ID
+	requestedGame, ok := gameIndex[gameID]
+	if ok != true {
+		return &WebError{err, "No such game found", http.StatusNotFound}
+	}
+
+	// read in only up to 1MB of data from the client. Come on, now.
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+	if err != nil {
+		log.Println(err)
+	}
+
+	// turn the submitted JSON into a Movement struct, if possible
+	var movement Movement
+	if unmarshalError := json.Unmarshal(body, &movement); unmarshalError != nil {
+		return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
+	}
+
+	if err := requestedGame.MoveStack(movement); err != nil {
+		return &WebError{err, fmt.Sprintf("problem moving stack at %v: %v", movement.Coords, err), 409}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(requestedGame.Grid)
+	return nil
+}
