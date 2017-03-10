@@ -96,7 +96,6 @@ func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
 }
 
 // StackMoveHandler will accept a JSON Movement for a particular game, execute it if it's legal, and then return the updated grid
-
 func StackMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	// get the gameID from the URL path
 	vars := mux.Vars(r)
