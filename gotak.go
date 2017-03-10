@@ -95,7 +95,7 @@ type WebError struct {
 	Code    int
 }
 
-// Let's try something out.
+// Let's try simplifying error reporting back to the user by making our own Handler that produces WebError
 type webHandler func(http.ResponseWriter, *http.Request) *WebError
 
 func (fn webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -107,27 +107,30 @@ func (fn webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
 func (b *Board) TranslateCoords(coords string) (rank int, file int, error error) {
 	grid := b.Grid
-
 	// looking for coordinates in the form LetterNumber
 	r := regexp.MustCompile("^([a-zA-Z])([1-9]|[12][0-9])$")
 
 	validcoords := r.FindAllStringSubmatch(coords, -1)
 
-	if len(validcoords) > 0 {
-		// Assuming we've got a valid looking set of coordinates, look them up on the provided board
-		rank := LetterMap[validcoords[0][1]]
-		file, err := strconv.Atoi(validcoords[0][2])
-		switch {
-		case err != nil:
-			return -1, -1, errors.New("cannot interpret coordinates")
-		case rank >= len(grid) || file-1 >= len(grid):
-			return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], len(grid))
-		}
-		// arrays start with [0], so subtract one from the human-readable rank
-		file = file - 1
-		return rank, file, nil
+	if len(validcoords) <= 0 {
+		return -1, -1, fmt.Errorf("Could not interpret coordinates '%v'", coords)
 	}
-	return -1, -1, fmt.Errorf("Could not interpret coordinates '%v'", coords)
+
+	// Assuming we've got a valid looking set of coordinates, look them up on the provided board
+	// Also of note is that Tak coordinates start with "a" as the first rank at the *bottom*
+	// of the board, so to get the right slice position, I've got to do the math below.
+	rank = (len(grid) - 1) - LetterMap[validcoords[0][1]]
+	file, err := strconv.Atoi(validcoords[0][2])
+	// arrays start with [0], so subtract one from the human-readable rank
+	file = file - 1
+
+	switch {
+	case err != nil:
+		return -1, -1, errors.New("cannot interpret coordinates")
+	case rank < 0 || file-1 >= len(grid):
+		return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], len(grid))
+	}
+	return rank, file, nil
 }
 
 // CheckSquare looks at a given spot on a given board and returns what's there
@@ -176,22 +179,27 @@ func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
 
 // MoveStack should move a stack from a valid board position and return the updated board
 func (b *Board) MoveStack(movement Movement) error {
+
 	empty, err := b.SquareIsEmpty(movement.Coords)
-	if err == nil {
-		if empty == true {
-			return fmt.Errorf("No stack on unoccupied square %v", movement.Coords)
-		}
-		rank, file, translateErr := b.TranslateCoords(movement.Coords)
-		if translateErr == nil {
-			// Here's where to start tomorrow.
-			fmt.Printf("rank %v file %v\n", rank, file)
-			// square := &b.Grid[rank][file]
-			// square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
-			return nil
-		}
-		return translateErr
+	if err != nil {
+		return fmt.Errorf("Problem checking square %v: %v", movement.Coords, err)
 	}
-	return fmt.Errorf("Could not place piece at %v: %v", movement.Coords, err)
+	if empty == true {
+		return fmt.Errorf("No stack on unoccupied square %v", movement.Coords)
+	}
+	rank, file, translateErr := b.TranslateCoords(movement.Coords)
+	if translateErr != nil {
+		return fmt.Errorf("Problem with coords %v: %v", movement.Coords, translateErr)
+	}
+
+	fmt.Printf("rank %v file %v\n%v", rank, file, movement)
+	fmt.Printf("How many pieces at %v, %v: %v", rank, file, len(b.Grid[rank][file].Pieces))
+
+	// square := &b.Grid[rank][file]
+	// square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
+	return nil
+
+	// return fmt.Errorf("Could not place piece at %v: %v", movement.Coords, err)
 
 }
 
@@ -202,7 +210,8 @@ func main() {
 	r.HandleFunc("/", SlashHandler)
 	r.HandleFunc("/newgame/{boardSize}", NewGameHandler)
 	r.HandleFunc("/showgame/{gameID}", ShowGameHandler)
-	r.Handle("/place/{gameID}", webHandler(PlaceMoveHandler)).Methods("PUT")
+	// r.Handle("/place/{gameID}", webHandler(PlaceMoveHandler)).Methods("PUT")
+	r.Handle("/action/{action}/{gameID}", webHandler(ActionHandler)).Methods("PUT")
 
 	// Bind to a port and pass our router in
 	log.Fatal(http.ListenAndServe(":8000", r))

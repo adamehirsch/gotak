@@ -11,9 +11,9 @@ func TestBoardSizeLimits(t *testing.T) {
 	firstPiece := Piece{"white", "flat"}
 	secondPiece := Piece{"black", "flat"}
 	thirdPiece := Piece{"white", "capstone"}
-	testBoard.Grid[0][0] = Stack{[]Piece{firstPiece, secondPiece}}
+	testBoard.Grid[4][0] = Stack{[]Piece{firstPiece, secondPiece}}
 	testBoard.Grid[0][2] = Stack{[]Piece{firstPiece, thirdPiece}}
-	testBoard.Grid[3][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+	testBoard.Grid[1][3] = Stack{[]Piece{thirdPiece, secondPiece}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -45,9 +45,9 @@ func TestBoardSquareEmpty(t *testing.T) {
 	firstPiece := Piece{"white", "flat"}
 	secondPiece := Piece{"black", "flat"}
 	thirdPiece := Piece{"white", "capstone"}
-	testBoard.Grid[1][0] = Stack{[]Piece{firstPiece, secondPiece}}
-	testBoard.Grid[0][4] = Stack{[]Piece{firstPiece, thirdPiece}}
-	testBoard.Grid[3][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+	testBoard.Grid[4][4] = Stack{[]Piece{firstPiece, secondPiece}}
+	testBoard.Grid[3][0] = Stack{[]Piece{firstPiece, thirdPiece}}
+	testBoard.Grid[1][3] = Stack{[]Piece{thirdPiece, secondPiece}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -79,9 +79,9 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	firstPiece := Piece{"white", "flat"}
 	secondPiece := Piece{"black", "flat"}
 	thirdPiece := Piece{"white", "capstone"}
-	testBoard.Grid[1][0] = Stack{[]Piece{firstPiece, secondPiece}}
-	testBoard.Grid[0][4] = Stack{[]Piece{firstPiece, thirdPiece}}
-	testBoard.Grid[3][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+	testBoard.Grid[4][4] = Stack{[]Piece{firstPiece, secondPiece}}
+	testBoard.Grid[3][0] = Stack{[]Piece{firstPiece, secondPiece}}
+	testBoard.Grid[1][3] = Stack{[]Piece{thirdPiece, secondPiece}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {

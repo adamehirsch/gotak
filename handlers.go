@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -58,8 +59,10 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// PlaceMoveHandler will accept a JSON Placement for a particular game, execute it if the space is empty, and then return the updated grid
-func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
+/*
+ActionHandler will accept a JSON action for a particular game, determine whether it's a placement or movement, execute it if rules allow, and then return the updated grid.
+*/
+func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	// get the gameID from the URL path
 	vars := mux.Vars(r)
 	gameID, err := uuid.FromString(vars["gameID"])
@@ -79,55 +82,38 @@ func PlaceMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
 		log.Println(err)
 	}
 
-	// turn the submitted JSON into a Placement struct, if possible
+	// I am assuming there is a cleaner way to do this.
 	var placement Placement
-	if unmarshalError := json.Unmarshal(body, &placement); unmarshalError != nil {
-		return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
-	}
-
-	if err := requestedGame.PlacePiece(placement.Coords, placement.Piece); err != nil {
-		return &WebError{err, fmt.Sprintf("problem placing piece at %v: %v", placement.Coords, err), 409}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(requestedGame.Grid)
-	return nil
-}
-
-// StackMoveHandler will accept a JSON Movement for a particular game, execute it if it's legal, and then return the updated grid
-func StackMoveHandler(w http.ResponseWriter, r *http.Request) *WebError {
-	// get the gameID from the URL path
-	vars := mux.Vars(r)
-	gameID, err := uuid.FromString(vars["gameID"])
-	if err != nil {
-		return &WebError{err, "Problem with game ID", http.StatusNotAcceptable}
-	}
-
-	// fetch out and validate that we've got a game by that ID
-	requestedGame, ok := gameIndex[gameID]
-	if ok != true {
-		return &WebError{err, "No such game found", http.StatusNotFound}
-	}
-
-	// read in only up to 1MB of data from the client. Come on, now.
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
-	if err != nil {
-		log.Println(err)
-	}
-
-	// turn the submitted JSON into a Movement struct, if possible
 	var movement Movement
-	if unmarshalError := json.Unmarshal(body, &movement); unmarshalError != nil {
-		return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
-	}
 
-	if err := requestedGame.MoveStack(movement); err != nil {
-		return &WebError{err, fmt.Sprintf("problem moving stack at %v: %v", movement.Coords, err), 409}
-	}
+	if vars["action"] == "place" {
+		if unmarshalError := json.Unmarshal(body, &placement); unmarshalError != nil {
+			return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
+		}
 
+		// json.Unmarshal will sometimes parse valid but inapplicable JSON into an empty struct. Catch that.
+		if ((placement.Piece) == Piece{} || (placement.Coords) == "") {
+			return &WebError{errors.New("Missing piece and/or coordinates"), "Placement is missing piece and/or coordinates", http.StatusUnprocessableEntity}
+		}
+
+		if err := requestedGame.PlacePiece(placement.Coords, placement.Piece); err != nil {
+			return &WebError{err, fmt.Sprintf("problem placing piece at %v: %v", placement.Coords, err), 409}
+		}
+
+	} else if vars["action"] == "move" {
+
+		if unmarshalError := json.Unmarshal(body, &movement); unmarshalError != nil {
+			return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
+		}
+
+		if err := requestedGame.MoveStack(movement); err != nil {
+			return &WebError{err, fmt.Sprintf("problem moving stack at %v: %v", movement.Coords, err), 409}
+		}
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(requestedGame.Grid)
+	json.NewEncoder(w).Encode(placement)
+	json.NewEncoder(w).Encode(movement)
 	return nil
 }
