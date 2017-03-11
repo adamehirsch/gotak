@@ -106,6 +106,11 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 			return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
 		}
 
+		// json.Unmarshal will sometimes parse valid but inapplicable JSON into an empty struct. Catch that.
+		if (movement.Coords) == "" || (movement.Direction == "") {
+			return &WebError{errors.New("Missing coordinates and/or direction"), "Missing coordinates and/or direction", http.StatusUnprocessableEntity}
+		}
+
 		if err := requestedGame.MoveStack(movement); err != nil {
 			return &WebError{err, fmt.Sprintf("problem moving stack at %v: %v", movement.Coords, err), 409}
 		}
