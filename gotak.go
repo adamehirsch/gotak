@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -120,13 +119,13 @@ func (b *Board) TranslateCoords(coords string) (rank int, file int, error error)
 	// ranks are numbered, up the sides; files are lettered across the bottom
 	// Also of note is that Tak coordinates start with "a" as the first rank at the *bottom*
 	// of the board, so to get the right slice position, I've got to do the math below.
+	file = LetterMap[validcoords[0][1]]
 	rank, err := strconv.Atoi(validcoords[0][2])
 	rank = (len(grid) - 1) - (rank - 1)
-	file = LetterMap[validcoords[0][1]]
 	// fmt.Printf("coords: %v rank: %v file %v gridsize: %v\n", validcoords[0][0], rank, file, len(b.Grid))
 	switch {
 	case err != nil:
-		return -1, -1, errors.New("cannot interpret coordinates")
+		return -1, -1, fmt.Errorf("problem interpreting coordinates %v", validcoords[0][0])
 	case rank < 0 || file >= len(grid):
 		return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], len(grid))
 	}
@@ -184,10 +183,19 @@ func (b *Board) MoveStack(movement Movement) error {
 	squareIsEmpty, err := b.SquareIsEmpty(movement.Coords)
 	rank, file, translateErr := b.TranslateCoords(movement.Coords)
 	stackHeight := len(b.Grid[rank][file].Pieces)
-	var totalDrops int
+	var totalDrops, minDrop, maxDrop int
+	minDrop = 1
 	for _, drop := range movement.Drops {
 		totalDrops += drop
+		if drop < minDrop {
+			minDrop = drop
+		}
+		if drop > maxDrop {
+			maxDrop = drop
+		}
 	}
+
+	fmt.Printf("coords: %v direction: %v\nrank %v file %v stackHeight %v \ntotalDrops %v minDrop %v\n", movement.Coords, movement.Direction, rank, file, stackHeight, totalDrops, minDrop)
 
 	if err != nil {
 		return fmt.Errorf("Problem checking square %v: %v", movement.Coords, err)
@@ -206,14 +214,17 @@ func (b *Board) MoveStack(movement Movement) error {
 		return fmt.Errorf("Requested carry of %v pieces exceeds board carry limit: %v", movement.Carry, boardSize)
 	case totalDrops > movement.Carry:
 		return fmt.Errorf("Requested drops (%v) exceed carry of %v pieces", movement.Drops, movement.Carry)
-	case movement.Direction == ">":
-		fmt.Println("Received movement >")
-	case movement.Direction == "<":
-		fmt.Println("Received movement <")
+	case minDrop < 1:
+		return fmt.Errorf("Stack movements (%v) include a drop less than 1: %v", movement.Drops, minDrop)
+	case (movement.Direction == "<") && (file-len(movement.Drops)) < 0:
+		return fmt.Errorf("Stack movements (%v) would exceed left board edge", movement.Drops)
+	case (movement.Direction == ">") && (file+len(movement.Drops)) >= boardSize:
+		return fmt.Errorf("Stack movements (%v) would exceed right board edge", movement.Drops)
+	case (movement.Direction == "+") && (rank-len(movement.Drops)) < 0:
+		return fmt.Errorf("Stack movements (%v) would exceed top board edge", movement.Drops)
+	case (movement.Direction == "-") && (rank+len(movement.Drops)) >= boardSize:
+		return fmt.Errorf("Stack movements (%v) would exceed bottom board edge", movement.Drops)
 	}
-
-	fmt.Printf("rank %v file %v\n%v", rank, file, movement)
-	fmt.Printf("How many pieces at %v, %v: %v", rank, file, len(b.Grid[rank][file].Pieces))
 
 	// square := &b.Grid[rank][file]
 	// square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
@@ -224,6 +235,20 @@ func (b *Board) MoveStack(movement Movement) error {
 }
 
 func main() {
+	testBoard := MakeGameBoard(5)
+	whiteFlat := Piece{"white", "flat"}
+	blackFlat := Piece{"black", "flat"}
+	whiteCapstone := Piece{"white", "capstone"}
+	blackCapstone := Piece{"black", "capstone"}
+
+	// b2
+	testBoard.Grid[4][1] = Stack{[]Piece{whiteCapstone, whiteFlat, blackFlat}}
+	// a5
+	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	// c4
+	testBoard.Grid[1][3] = Stack{[]Piece{blackCapstone, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+
+	fmt.Printf("testboard: %v\n", testBoard.BoardID)
 
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.

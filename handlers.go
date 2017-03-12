@@ -118,7 +118,7 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(requestedGame.Grid)
-	json.NewEncoder(w).Encode(placement)
-	json.NewEncoder(w).Encode(movement)
+	// json.NewEncoder(w).Encode(placement)
+	// json.NewEncoder(w).Encode(movement)
 	return nil
 }
