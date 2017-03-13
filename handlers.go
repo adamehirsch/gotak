@@ -112,7 +112,7 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 		}
 
 		if err := requestedGame.MoveStack(movement); err != nil {
-			return &WebError{err, fmt.Sprintf("problem moving stack at %v: %v", movement.Coords, err), 409}
+			return &WebError{err, fmt.Sprintf("%v: %v", err, movement.Coords), 409}
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")

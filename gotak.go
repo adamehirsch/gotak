@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,8 +28,9 @@ type Stack struct {
 
 // Board is an NxN grid of spaces, optionally occupied by Stacks of Pieces. A given Board has a guaranteed unique uuid
 type Board struct {
-	BoardID uuid.UUID
-	Grid    [][]Stack
+	BoardID    uuid.UUID
+	Grid       [][]Stack
+	IsDarkTurn bool
 }
 
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
@@ -106,29 +106,28 @@ func (fn webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
 func (b *Board) TranslateCoords(coords string) (rank int, file int, error error) {
-	grid := b.Grid
-	// looking for coordinates in the form LetterNumber
-	r := regexp.MustCompile("^([a-zA-Z])([1-9]|[12][0-9])$")
 
+	// look for coordinates in the form LetterNumber
+	r := regexp.MustCompile("^([a-mA-M])([1-9]|[1][0-3])$")
 	validcoords := r.FindAllStringSubmatch(coords, -1)
-
 	if len(validcoords) <= 0 {
 		return -1, -1, fmt.Errorf("Could not interpret coordinates '%v'", coords)
 	}
-
 	// Assuming we've got a valid looking set of coordinates, look them up on the provided board
 	// ranks are numbered, up the sides; files are lettered across the bottom
 	// Also of note is that Tak coordinates start with "a" as the first rank at the *bottom*
 	// of the board, so to get the right slice position, I've got to do the math below.
 	file = LetterMap[validcoords[0][1]]
 	rank, err := strconv.Atoi(validcoords[0][2])
-	rank = (len(grid) - 1) - (rank - 1)
-	// fmt.Printf("coords: %v rank: %v file %v gridsize: %v\n", validcoords[0][0], rank, file, len(b.Grid))
+	boardSize := len(b.Grid)
+	rank = (boardSize - 1) - (rank - 1)
+	fmt.Printf("coords: %v rank: %v file: %v boardSize: %v\n", coords, rank, file, boardSize)
+
 	switch {
 	case err != nil:
 		return -1, -1, fmt.Errorf("problem interpreting coordinates %v", validcoords[0][0])
-	case rank < 0 || file >= len(grid):
-		return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], len(grid))
+	case rank < 0 || file >= boardSize:
+		return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], boardSize)
 	}
 	return rank, file, nil
 }
@@ -147,34 +146,32 @@ func (b *Board) CheckSquare(coords string) (Stack, error) {
 // SquareIsEmpty returns a simple boolean to signal if ... wait for it ... a square is empty
 func (b *Board) SquareIsEmpty(coords string) (bool, error) {
 	foundStack, err := b.CheckSquare(coords)
-	if err == nil {
-		// is there only an empty Stack{} on that square? If so, it's empty.
-		if reflect.DeepEqual(foundStack, Stack{}) {
-			return true, nil
-		}
-		return false, nil
+	if err != nil {
+		return false, fmt.Errorf("Problem at coordinates '%v': %v", coords, err)
 	}
-	// return false, fmt.Errorf("Could not interpret coordinates '%v'", coords)
-	return false, fmt.Errorf("Problem at coordinates '%v': %v", coords, err)
+	// is there only an empty Stack{} on that square? If so, it's empty.
+	if reflect.DeepEqual(foundStack, Stack{}) {
+		return true, nil
+	}
+	return false, nil
 }
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
 func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
 	empty, err := b.SquareIsEmpty(coords)
-	if err == nil {
-		if empty == false {
-			return fmt.Errorf("Could not place piece at occupied square %v", coords)
-		}
-		rank, file, translateErr := b.TranslateCoords(coords)
-		if translateErr == nil {
-			square := &b.Grid[rank][file]
-			square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
-			return nil
-		}
+	if err != nil {
+		return fmt.Errorf("Could not place piece at %v: %v", coords, err)
+	}
+	if empty == false {
+		return fmt.Errorf("Could not place piece at occupied square %v", coords)
+	}
+	rank, file, translateErr := b.TranslateCoords(coords)
+	if translateErr != nil {
 		return translateErr
 	}
-	return fmt.Errorf("Could not place piece at %v: %v", coords, err)
-
+	square := &b.Grid[rank][file]
+	square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
+	return nil
 }
 
 // MoveStack should move a stack from a valid board position and return the updated board
@@ -182,25 +179,37 @@ func (b *Board) MoveStack(movement Movement) error {
 	err := b.validateMovement(movement)
 
 	if err != nil {
-		return errors.New("bad movement request")
+		return fmt.Errorf("bad movement request: %v", err)
 	}
-
+	// I've already validated the coordinates; there should be no error
+	rank, file, _ := b.TranslateCoords(movement.Coords)
+	movingStack := b.Grid[rank][file].Pieces[0:movement.Carry]
+	b.Grid[rank][file].Pieces = b.Grid[rank][file].Pieces[movement.Carry:]
+	// foo := &b.Grid[rank][file].Pieces
 	// do the actual move here, now that we know it's good
+	if movement.Direction == ">" {
+
+		fmt.Printf("movingStack: %v\nwhatIsLeft: %v\n", movingStack, b.Grid[rank][file].Pieces)
+	}
 	return nil
 
 }
 
-func (b *Board) validateMovement(movement Movement) error {
+// validateMovement checks to see if a Movement order is okay to run.
+func (b *Board) validateMovement(m Movement) error {
 
-	r := regexp.MustCompile("^[+-<>]$")
-	goodDirection := r.MatchString(movement.Direction)
 	boardSize := len(b.Grid)
-	squareIsEmpty, emptyErr := b.SquareIsEmpty(movement.Coords)
-	rank, file, translateErr := b.TranslateCoords(movement.Coords)
+	squareIsEmpty, emptyErr := b.SquareIsEmpty(m.Coords)
+	rank, file, translateErr := b.TranslateCoords(m.Coords)
+	if translateErr != nil {
+		return fmt.Errorf("%v: %v", m.Coords, translateErr)
+	}
 	stackHeight := len(b.Grid[rank][file].Pieces)
+	moveTooBig := b.WouldHitBoardBoundary(m)
+	unparsableDirection := b.ValidMoveDirection(m)
 	var totalDrops, minDrop, maxDrop int
 	minDrop = 1
-	for _, drop := range movement.Drops {
+	for _, drop := range m.Drops {
 		totalDrops += drop
 		if drop < minDrop {
 			minDrop = drop
@@ -210,39 +219,58 @@ func (b *Board) validateMovement(movement Movement) error {
 		}
 	}
 
-	fmt.Printf("coords: %v direction: %v\nrank %v file %v stackHeight %v \ntotalDrops %v minDrop %v\n", movement.Coords, movement.Direction, rank, file, stackHeight, totalDrops, minDrop)
-
 	switch {
 	case emptyErr != nil:
-		return fmt.Errorf("Problem checking square %v: %v", movement.Coords, emptyErr)
-	case translateErr != nil:
-		return fmt.Errorf("Problem with coords %v: %v", movement.Coords, translateErr)
-	case goodDirection == false:
-		return fmt.Errorf("Invalid movement direction '%v'", movement.Direction)
+		return fmt.Errorf("Problem checking square %v: %v", m.Coords, emptyErr)
 	case squareIsEmpty == true:
-		return fmt.Errorf("Cannot move non-existent stack: unoccupied square %v", movement.Coords)
-	case movement.Carry > stackHeight:
-		return fmt.Errorf("Stack at %v is %v high - cannot carry %v pieces", movement.Coords, stackHeight, movement.Carry)
-	case movement.Carry > len(b.Grid):
-		return fmt.Errorf("Requested carry of %v pieces exceeds board carry limit: %v", movement.Carry, boardSize)
-	case totalDrops > movement.Carry:
-		return fmt.Errorf("Requested drops (%v) exceed carry of %v pieces", movement.Drops, movement.Carry)
+		return fmt.Errorf("Cannot move non-existent stack: unoccupied square %v", m.Coords)
+	case m.Carry > stackHeight:
+		return fmt.Errorf("Stack at %v is %v high - cannot carry %v pieces", m.Coords, stackHeight, m.Carry)
+	case m.Carry > len(b.Grid):
+		return fmt.Errorf("Requested carry of %v pieces exceeds board carry limit: %v", m.Carry, boardSize)
+	case totalDrops > m.Carry:
+		return fmt.Errorf("Requested drops (%v) exceed carry of %v pieces", m.Drops, m.Carry)
 	case minDrop < 1:
-		return fmt.Errorf("Stack movements (%v) include a drop less than 1: %v", movement.Drops, minDrop)
-	case (movement.Direction == "<") && (file-len(movement.Drops)) < 0:
-		return fmt.Errorf("Stack movement (%v) would exceed left board edge", movement.Drops)
-	case (movement.Direction == ">") && (file+len(movement.Drops)) >= boardSize:
-		return fmt.Errorf("Stack movement (%v) would exceed right board edge", movement.Drops)
-	case (movement.Direction == "+") && (rank-len(movement.Drops)) < 0:
-		return fmt.Errorf("Stack movement (%v) would exceed top board edge", movement.Drops)
-	case (movement.Direction == "-") && (rank+len(movement.Drops)) >= boardSize:
-		return fmt.Errorf("Stack movement (%v) would exceed bottom board edge", movement.Drops)
+		return fmt.Errorf("Stack movements (%v) include a drop less than 1: %v", m.Drops, minDrop)
+	case moveTooBig != nil:
+		return moveTooBig
+	case unparsableDirection != nil:
+		return unparsableDirection
 	}
+	return nil
+}
 
-	// square := &b.Grid[rank][file]
-	// square.Pieces = append([]Piece{pieceToPlace}, square.Pieces...)
+// WouldHitBoardBoundary checks whether a given move exceeds the board size
+func (b *Board) WouldHitBoardBoundary(m Movement) error {
+	boardSize := len(b.Grid)
+	badMove := b.ValidMoveDirection(m)
+	rank, file, translateError := b.TranslateCoords(m.Coords)
+	if badMove != nil {
+		return fmt.Errorf("can't parse move direction '%v'", m.Direction)
+	}
+	if translateError != nil {
+		return fmt.Errorf("can't parse coordinates '%v'", m.Coords)
+	}
+	switch {
+	case (m.Direction == "<") && (file-len(m.Drops)) < 0:
+		return fmt.Errorf("Stack movement (%v) would exceed left board edge", m.Drops)
+	case (m.Direction == ">") && (file+len(m.Drops)) >= boardSize:
+		return fmt.Errorf("Stack movement (%v) would exceed right board edge", m.Drops)
+	case (m.Direction == "+") && (rank-len(m.Drops)) < 0:
+		return fmt.Errorf("Stack movement (%v) would exceed top board edge", m.Drops)
+	case (m.Direction == "-") && (rank+len(m.Drops)) >= boardSize:
+		return fmt.Errorf("Stack movement (%v) would exceed bottom board edge", m.Drops)
+	}
+	return nil
+}
 
-	// return fmt.Errorf("Could not place piece at %v: %v", movement.Coords, err)
+// ValidMoveDirection checks that the move direction is correct
+func (b *Board) ValidMoveDirection(m Movement) error {
+	r := regexp.MustCompile("^[+-<>]$")
+	goodDirection := r.MatchString(m.Direction)
+	if goodDirection == false {
+		return fmt.Errorf("Invalid movement direction '%v'", m.Direction)
+	}
 	return nil
 }
 
@@ -257,7 +285,7 @@ func main() {
 	testBoard.Grid[4][1] = Stack{[]Piece{whiteCapstone, whiteFlat, blackFlat}}
 	// a5
 	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat, whiteFlat, blackFlat}}
-	// c4
+	// d4
 	testBoard.Grid[1][3] = Stack{[]Piece{blackCapstone, whiteFlat, blackFlat, whiteFlat, blackFlat}}
 
 	fmt.Printf("testboard: %v\n", testBoard.BoardID)
