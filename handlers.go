@@ -14,6 +14,15 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// Let's try simplifying error reporting back to the user by making our own Handler that produces WebError
+type webHandler func(http.ResponseWriter, *http.Request) *WebError
+
+func (fn webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if e := fn(w, r); e != nil { // e is *webError, not os.Error.
+		http.Error(w, e.Message, e.Code)
+	}
+}
+
 // SlashHandler is a slim handler to present some canned HTML for humans to read
 func SlashHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("GOTAK!\n"))

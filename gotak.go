@@ -95,15 +95,6 @@ type WebError struct {
 	Code    int
 }
 
-// Let's try simplifying error reporting back to the user by making our own Handler that produces WebError
-type webHandler func(http.ResponseWriter, *http.Request) *WebError
-
-func (fn webHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if e := fn(w, r); e != nil { // e is *webError, not os.Error.
-		http.Error(w, e.Message, e.Code)
-	}
-}
-
 // TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
 func (b *Board) TranslateCoords(coords string) (rank int, file int, error error) {
 
@@ -121,7 +112,7 @@ func (b *Board) TranslateCoords(coords string) (rank int, file int, error error)
 	rank, err := strconv.Atoi(validcoords[0][2])
 	boardSize := len(b.Grid)
 	rank = (boardSize - 1) - (rank - 1)
-	fmt.Printf("coords: %v rank: %v file: %v boardSize: %v\n", coords, rank, file, boardSize)
+	// fmt.Printf("coords: %v rank: %v file: %v boardSize: %v\n", coords, rank, file, boardSize)
 
 	switch {
 	case err != nil:
@@ -176,20 +167,22 @@ func (b *Board) PlacePiece(coords string, pieceToPlace Piece) error {
 
 // MoveStack should move a stack from a valid board position and return the updated board
 func (b *Board) MoveStack(movement Movement) error {
-	err := b.validateMovement(movement)
 
-	if err != nil {
+	if err := b.validateMovement(movement); err != nil {
 		return fmt.Errorf("bad movement request: %v", err)
 	}
-	// I've already validated the coordinates; there should be no error
+
+	// I've already validated the move; there should be no error
 	rank, file, _ := b.TranslateCoords(movement.Coords)
 	movingStack := b.Grid[rank][file].Pieces[0:movement.Carry]
-	b.Grid[rank][file].Pieces = b.Grid[rank][file].Pieces[movement.Carry:]
-	// foo := &b.Grid[rank][file].Pieces
+	remainingStack := b.Grid[rank][file].Pieces[movement.Carry:]
+
+	fmt.Printf("rank: %v file: %v movingStack: %v remainingStack: %v\n", rank, file, movingStack, remainingStack)
+
+	b.Grid[rank][file].Pieces = remainingStack
 	// do the actual move here, now that we know it's good
 	if movement.Direction == ">" {
-
-		fmt.Printf("movingStack: %v\nwhatIsLeft: %v\n", movingStack, b.Grid[rank][file].Pieces)
+		b.Grid[rank][file+1].Pieces = append(movingStack, b.Grid[rank][file+1].Pieces...)
 	}
 	return nil
 
@@ -276,17 +269,20 @@ func (b *Board) ValidMoveDirection(m Movement) error {
 
 func main() {
 	testBoard := MakeGameBoard(5)
+	testBoard.BoardID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
+	gameIndex[testBoard.BoardID] = testBoard
+
 	whiteFlat := Piece{"white", "flat"}
 	blackFlat := Piece{"black", "flat"}
 	whiteCapstone := Piece{"white", "capstone"}
 	blackCapstone := Piece{"black", "capstone"}
 
 	// b2
-	testBoard.Grid[4][1] = Stack{[]Piece{whiteCapstone, whiteFlat, blackFlat}}
-	// a5
-	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	// testBoard.Grid[4][1] = Stack{[]Piece{whiteCapstone, whiteFlat, blackFlat}}
+	// a1
+	testBoard.Grid[4][0] = Stack{[]Piece{blackCapstone, whiteCapstone, blackFlat, whiteFlat, blackFlat}}
 	// d4
-	testBoard.Grid[1][3] = Stack{[]Piece{blackCapstone, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	// testBoard.Grid[1][3] = Stack{[]Piece{blackCapstone, whiteFlat, blackFlat, whiteFlat, blackFlat}}
 
 	fmt.Printf("testboard: %v\n", testBoard.BoardID)
 
