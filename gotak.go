@@ -173,17 +173,43 @@ func (b *Board) MoveStack(movement Movement) error {
 	}
 
 	// I've already validated the move; there should be no error
-	rank, file, _ := b.TranslateCoords(movement.Coords)
-	movingStack := b.Grid[rank][file].Pieces[0:movement.Carry]
-	remainingStack := b.Grid[rank][file].Pieces[movement.Carry:]
-
-	fmt.Printf("rank: %v file: %v movingStack: %v remainingStack: %v\n", rank, file, movingStack, remainingStack)
-
-	b.Grid[rank][file].Pieces = remainingStack
-	// do the actual move here, now that we know it's good
-	if movement.Direction == ">" {
-		b.Grid[rank][file+1].Pieces = append(movingStack, b.Grid[rank][file+1].Pieces...)
+	rank, file, translateError := b.TranslateCoords(movement.Coords)
+	if translateError != nil {
+		return fmt.Errorf("%v: %v", movement.Coords, translateError)
 	}
+
+	square := &b.Grid[rank][file]
+	var nextSquare *Stack
+
+	switch movement.Direction {
+	case ">":
+		nextSquare = &b.Grid[rank][file+1]
+	case "<":
+		nextSquare = &b.Grid[rank][file-1]
+	case "+":
+		nextSquare = &b.Grid[rank-1][file]
+	case "-":
+		nextSquare = &b.Grid[rank+1][file]
+	}
+
+	// in order to make this move work, I had to explicitly make() a new slice. Why?
+	movingStack := make([]Piece, movement.Carry)
+	copy(movingStack, square.Pieces[0:movement.Carry])
+	remainingStack := square.Pieces[movement.Carry:]
+
+	// trying to figure out WTF is going on
+	fmt.Printf("movingStack: %v remainingStack: %v\n", movingStack, remainingStack)
+	fmt.Printf("BEFORE: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
+
+	square.Pieces = remainingStack
+	fmt.Printf("DURING: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
+
+	// do the actual move here, now that we know it's good
+	newStack := append(movingStack, nextSquare.Pieces...)
+	nextSquare.Pieces = newStack
+
+	fmt.Printf("AFTER: square.Pieces %v  nextSquare.Pieces %v \n\n", square.Pieces, nextSquare.Pieces)
+
 	return nil
 
 }
@@ -272,15 +298,19 @@ func main() {
 	testBoard.BoardID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
 	gameIndex[testBoard.BoardID] = testBoard
 
-	whiteFlat := Piece{"white", "flat"}
-	blackFlat := Piece{"black", "flat"}
-	whiteCapstone := Piece{"white", "capstone"}
-	blackCapstone := Piece{"black", "capstone"}
+	whiteFlat := Piece{"A", "flat"}
+	blackFlat := Piece{"B", "flat"}
+	cowFlat := Piece{"C", "flat"}
+	dogFlat := Piece{"D", "flat"}
+	eggFlat := Piece{"E", "flat"}
+
+	// whiteCapstone := Piece{"white", "capstone"}
+	// blackCapstone := Piece{"black", "capstone"}
 
 	// b2
 	// testBoard.Grid[4][1] = Stack{[]Piece{whiteCapstone, whiteFlat, blackFlat}}
 	// a1
-	testBoard.Grid[4][0] = Stack{[]Piece{blackCapstone, whiteCapstone, blackFlat, whiteFlat, blackFlat}}
+	testBoard.Grid[4][0] = Stack{[]Piece{whiteFlat, blackFlat, cowFlat, dogFlat, eggFlat}}
 	// d4
 	// testBoard.Grid[1][3] = Stack{[]Piece{blackCapstone, whiteFlat, blackFlat, whiteFlat, blackFlat}}
 
