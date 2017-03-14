@@ -176,6 +176,9 @@ func (b *Board) MoveStack(movement Movement) error {
 	rank, file, _ := b.TranslateCoords(movement.Coords)
 	square := &b.Grid[rank][file]
 	var nextSquare *Stack
+	movingStack := make([]Piece, movement.Carry)
+	copy(movingStack, square.Pieces[0:movement.Carry])
+	square.Pieces = square.Pieces[movement.Carry:]
 
 	for _, DropCount := range movement.Drops {
 
@@ -198,24 +201,11 @@ func (b *Board) MoveStack(movement Movement) error {
 			return fmt.Errorf("can't determine movement direction '%v'", movement.Direction)
 		}
 
-		// in order to make this move work, I have to explicitly make() a new slice. Why?
-		movingStack := make([]Piece, movement.Carry)
-		copy(movingStack, square.Pieces[0:movement.Carry])
-		remainingStack := square.Pieces[movement.Carry:]
+		nextSquare.Pieces = append(movingStack[len(movingStack)-(DropCount):], nextSquare.Pieces...)
+		// for the next drop, trim off the elements of the slice that have already been dropped off
+		movingStack = movingStack[:len(movingStack)-(DropCount)]
+		fmt.Printf("-2- movingStack: %v\n\n", movingStack)
 
-		// trying to keep an eye on what is going on
-		fmt.Printf("movingStack: %v remainingStack: %v\n", movingStack, remainingStack)
-		fmt.Printf("BEFORE: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
-
-		square.Pieces = remainingStack
-		fmt.Printf("DURING: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
-
-		// do the actual move here, now that we know it's good
-		// Deposit
-		newStack := append(movingStack[len(movingStack)-(DropCount-1):], nextSquare.Pieces...)
-		nextSquare.Pieces = newStack
-
-		fmt.Printf("AFTER: square.Pieces %v  nextSquare.Pieces %v \n\n", square.Pieces, nextSquare.Pieces)
 	}
 	return nil
 
