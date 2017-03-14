@@ -105,7 +105,7 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 			return &WebError{errors.New("Missing piece and/or coordinates"), "Placement is missing piece and/or coordinates", http.StatusUnprocessableEntity}
 		}
 
-		if err := requestedGame.PlacePiece(placement.Coords, placement.Piece); err != nil {
+		if err := requestedGame.PlacePiece(placement); err != nil {
 			return &WebError{err, fmt.Sprintf("problem placing piece at %v: %v", placement.Coords, err), 409}
 		}
 

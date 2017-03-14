@@ -26,7 +26,7 @@ Rules can [be found here](http://cheapass.com/wp-content/uploads/2017/01/TakShor
       - Origin square
       - direction of move (+, -, >, <)
       - Number of pieces from stack
-      - (optional) array of number of pieces to drop off (DEFAULT: [1,1,1,...])
+      - array of number of pieces to drop off at each square (DEFAULT: [1,1,1,...])
     - validate:
       - requested number of pieces to move does not exceed the size of the origin stack
       - requested number of pieces does not exceed the board's "carry limit", which is the board size

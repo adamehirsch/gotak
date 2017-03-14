@@ -58,7 +58,7 @@ func TestBoardSquareEmpty(t *testing.T) {
 		{"b1", false, nil},
 		{"a5", false, nil},
 		{"b2", true, nil},
-		{"f1", false, errors.New("Problem at coordinates 'f1': coordinates 'f1' larger than board size: 5")},
+		{"f1", false, errors.New("Problem checking coordinates 'f1': coordinates 'f1' larger than board size: 5")},
 	}
 
 	for _, c := range cases {
@@ -85,20 +85,20 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 
 	// case-driven testing: The Bomb
 	cases := []struct {
-		Coords  string
-		Problem error
+		placement Placement
+		Problem   error
 	}{
-		{"b1", errors.New("Could not place piece at occupied square b1")},
-		{"a5", errors.New("Could not place piece at occupied square a5")},
-		{"b2", nil},
-		{"h1", errors.New("Could not place piece at h1: Problem at coordinates 'h1': coordinates 'h1' larger than board size: 5")},
+		{Placement{Coords: "b1", Piece: secondPiece}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
+		{Placement{Coords: "a5", Piece: secondPiece}, errors.New("bad placement request: Cannot place piece on occupied square a5")},
+		{Placement{Coords: "b2", Piece: firstPiece}, nil},
+		{Placement{Coords: "h1", Piece: secondPiece}, errors.New("bad placement request: h1: coordinates 'h1' larger than board size: 5")},
 	}
 
 	for _, c := range cases {
-		err := testBoard.PlacePiece(c.Coords, secondPiece)
+		err := testBoard.PlacePiece(c.placement)
 
 		if reflect.DeepEqual(err, c.Problem) == false {
-			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.Coords, err, c.Problem)
+			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.placement.Coords, err, c.Problem)
 		}
 
 	}
