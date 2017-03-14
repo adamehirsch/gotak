@@ -28,7 +28,7 @@ func TestBoardSizeLimits(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		testStack, err := testBoard.CheckSquare(c.coords)
+		testStack, err := testBoard.SquareContents(c.coords)
 		if reflect.DeepEqual(testStack, c.stack) == false {
 			t.Errorf("Returned stack from coords %v was %v: wanted %v\n", c.coords, testStack, c.stack)
 		}

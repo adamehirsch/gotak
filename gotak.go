@@ -123,8 +123,8 @@ func (b *Board) TranslateCoords(coords string) (rank int, file int, error error)
 	return rank, file, nil
 }
 
-// CheckSquare looks at a given spot on a given board and returns what's there
-func (b *Board) CheckSquare(coords string) (Stack, error) {
+// SquareContents looks at a given spot on a given board and returns what's there
+func (b *Board) SquareContents(coords string) (Stack, error) {
 	grid := b.Grid
 	rank, file, err := b.TranslateCoords(coords)
 	if err != nil {
@@ -136,7 +136,7 @@ func (b *Board) CheckSquare(coords string) (Stack, error) {
 
 // SquareIsEmpty returns a simple boolean to signal if ... wait for it ... a square is empty
 func (b *Board) SquareIsEmpty(coords string) (bool, error) {
-	foundStack, err := b.CheckSquare(coords)
+	foundStack, err := b.SquareContents(coords)
 	if err != nil {
 		return false, fmt.Errorf("Problem at coordinates '%v': %v", coords, err)
 	}
@@ -172,44 +172,51 @@ func (b *Board) MoveStack(movement Movement) error {
 		return fmt.Errorf("bad movement request: %v", err)
 	}
 
-	// I've already validated the move; there should be no error
-	rank, file, translateError := b.TranslateCoords(movement.Coords)
-	if translateError != nil {
-		return fmt.Errorf("%v: %v", movement.Coords, translateError)
-	}
-
+	// I've already validated the move above; there should be no error
+	rank, file, _ := b.TranslateCoords(movement.Coords)
 	square := &b.Grid[rank][file]
 	var nextSquare *Stack
 
-	switch movement.Direction {
-	case ">":
-		nextSquare = &b.Grid[rank][file+1]
-	case "<":
-		nextSquare = &b.Grid[rank][file-1]
-	case "+":
-		nextSquare = &b.Grid[rank-1][file]
-	case "-":
-		nextSquare = &b.Grid[rank+1][file]
+	for _, DropCount := range movement.Drops {
+
+		square = &b.Grid[rank][file]
+
+		switch movement.Direction {
+		case ">":
+			nextSquare = &b.Grid[rank][file+1]
+			file++
+		case "<":
+			nextSquare = &b.Grid[rank][file-1]
+			file--
+		case "+":
+			nextSquare = &b.Grid[rank-1][file]
+			rank--
+		case "-":
+			nextSquare = &b.Grid[rank+1][file]
+			rank++
+		default:
+			return fmt.Errorf("can't determine movement direction '%v'", movement.Direction)
+		}
+
+		// in order to make this move work, I have to explicitly make() a new slice. Why?
+		movingStack := make([]Piece, movement.Carry)
+		copy(movingStack, square.Pieces[0:movement.Carry])
+		remainingStack := square.Pieces[movement.Carry:]
+
+		// trying to keep an eye on what is going on
+		fmt.Printf("movingStack: %v remainingStack: %v\n", movingStack, remainingStack)
+		fmt.Printf("BEFORE: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
+
+		square.Pieces = remainingStack
+		fmt.Printf("DURING: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
+
+		// do the actual move here, now that we know it's good
+		// Deposit
+		newStack := append(movingStack[len(movingStack)-(DropCount-1):], nextSquare.Pieces...)
+		nextSquare.Pieces = newStack
+
+		fmt.Printf("AFTER: square.Pieces %v  nextSquare.Pieces %v \n\n", square.Pieces, nextSquare.Pieces)
 	}
-
-	// in order to make this move work, I had to explicitly make() a new slice. Why?
-	movingStack := make([]Piece, movement.Carry)
-	copy(movingStack, square.Pieces[0:movement.Carry])
-	remainingStack := square.Pieces[movement.Carry:]
-
-	// trying to figure out WTF is going on
-	fmt.Printf("movingStack: %v remainingStack: %v\n", movingStack, remainingStack)
-	fmt.Printf("BEFORE: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
-
-	square.Pieces = remainingStack
-	fmt.Printf("DURING: square.Pieces %v  nextSquare.Pieces %v\n", square.Pieces, nextSquare.Pieces)
-
-	// do the actual move here, now that we know it's good
-	newStack := append(movingStack, nextSquare.Pieces...)
-	nextSquare.Pieces = newStack
-
-	fmt.Printf("AFTER: square.Pieces %v  nextSquare.Pieces %v \n\n", square.Pieces, nextSquare.Pieces)
-
 	return nil
 
 }
