@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/gorilla/mux"
 	"github.com/satori/go.uuid"
@@ -69,15 +70,32 @@ func (b *Board) PlacePiece(p Placement) error {
 	if err := b.validatePlacement(p); err != nil {
 		return fmt.Errorf("bad placement request: %v", err)
 	}
+	p.Piece.Color = strings.ToLower(p.Piece.Color)
 	rank, file, _ := b.TranslateCoords(p.Coords)
-
 	square := &b.Grid[rank][file]
+	// Place That Piece!
 	square.Pieces = append([]Piece{p.Piece}, square.Pieces...)
+	fmt.Printf("0>b.IsDarkTurn is %t\n", b.IsDarkTurn)
+	if b.IsDarkTurn == true {
+		fmt.Printf("1>b.IsDarkTurn is %t\n", b.IsDarkTurn)
+		b.IsDarkTurn = false
+		fmt.Printf("2>b.IsDarkTurn is %t\n", b.IsDarkTurn)
+	} else {
+		fmt.Printf("3>b.IsDarkTurn is %t\n", b.IsDarkTurn)
+		b.IsDarkTurn = true
+		fmt.Printf("4>b.IsDarkTurn is %t\n", b.IsDarkTurn)
+
+	}
+	fmt.Printf("5>b.IsDarkTurn is %t\n", b.IsDarkTurn)
 	return nil
 }
 
 //validatePlacement checks to see if a Placement order is okay to run
 func (b *Board) validatePlacement(p Placement) error {
+
+	if colorErr := p.Piece.ValidateColor(); colorErr != nil {
+		return colorErr
+	}
 	_, _, translateErr := b.TranslateCoords(p.Coords)
 	if translateErr != nil {
 		return fmt.Errorf("%v: %v", p.Coords, translateErr)
@@ -86,27 +104,30 @@ func (b *Board) validatePlacement(p Placement) error {
 
 	rBlack := regexp.MustCompile("^(?i)black$")
 	rWhite := regexp.MustCompile("^(?i)white$")
+
+	fmt.Printf("-> coords %v color %s IsBlackTurn %t\n", p.Coords, p.Piece.Color, b.IsDarkTurn)
+
 	switch {
 	case emptyErr != nil:
 		return fmt.Errorf("Problem checking square %v: %v", p.Coords, emptyErr)
-	case squareIsEmpty != true:
-		return fmt.Errorf("Cannot place piece on occupied square %v", p.Coords)
 	case b.IsDarkTurn && rWhite.MatchString(p.Piece.Color):
 		return errors.New("Cannot place white piece on black turn")
 	case (b.IsDarkTurn == false) && rBlack.MatchString(p.Piece.Color):
 		return errors.New("Cannot place black piece on white turn")
+	case squareIsEmpty != true:
+		return fmt.Errorf("Cannot place piece on occupied square %v", p.Coords)
 	}
 	return nil
 }
 
-// WhatColor returns a valid color or an error
-func (p *Piece) WhatColor() (string, error) {
+// ValidateColor checks for either
+func (p *Piece) ValidateColor() error {
 	r := regexp.MustCompile("^((?i)black|white)$")
 	goodPieceColor := r.FindString(p.Color)
 	if goodPieceColor == "" {
-		return "", fmt.Errorf("Invalid piece color '%v'", p.Color)
+		return fmt.Errorf("Invalid piece color '%v'", p.Color)
 	}
-	return goodPieceColor, nil
+	return nil
 }
 
 // validateMovement checks to see if a Movement order is okay to run.
@@ -167,14 +188,14 @@ func (b *Board) MoveStack(movement Movement) error {
 	square := &b.Grid[rank][file]
 	// set up for the sequence of next squares the move will cover
 	var nextSquare *Stack
-	// create a new slice for the pieces in motion, and copy the "top" pieces from the origin square
+	// create a new slice for the pieces in motion, and copy the top pieces from the origin square
 	movingStack := make([]Piece, movement.Carry)
 	copy(movingStack, square.Pieces[0:movement.Carry])
 
-	// take the carried pieces off the origin
+	// remove the carried pieces off the origin stack
 	square.Pieces = square.Pieces[movement.Carry:]
 
-	// cycle through the array of drop orders
+	// Move That Stack!
 	for _, DropCount := range movement.Drops {
 
 		switch movement.Direction {
@@ -197,7 +218,12 @@ func (b *Board) MoveStack(movement Movement) error {
 		nextSquare.Pieces = append(movingStack[len(movingStack)-(DropCount):], nextSquare.Pieces...)
 		// for the next drop, trim off the elements of the slice that have already been dropped off
 		movingStack = movingStack[:len(movingStack)-(DropCount)]
+	}
 
+	if b.IsDarkTurn == true {
+		b.IsDarkTurn = false
+	} else {
+		b.IsDarkTurn = true
 	}
 	return nil
 }
@@ -241,21 +267,23 @@ func main() {
 	testBoard.BoardID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
 	gameIndex[testBoard.BoardID] = testBoard
 
-	whiteFlat := Piece{"A", "flat"}
-	blackFlat := Piece{"B", "flat"}
-	cowFlat := Piece{"C", "flat"}
-	dogFlat := Piece{"D", "flat"}
-	eggFlat := Piece{"E", "flat"}
-
-	// whiteCapstone := Piece{"white", "capstone"}
-	// blackCapstone := Piece{"black", "capstone"}
+	whiteFlat := Piece{"white", "flat"}
+	blackFlat := Piece{"black", "flat"}
+	whiteWall := Piece{"white", "wall"}
+	blackWall := Piece{"black", "wall"}
+	whiteCapstone := Piece{"white", "capstone"}
+	blackCapstone := Piece{"black", "capstone"}
 
 	// b2
-	// testBoard.Grid[4][1] = Stack{[]Piece{whiteCapstone, whiteFlat, blackFlat}}
+	testBoard.Grid[4][1] = Stack{[]Piece{whiteCapstone, whiteFlat, blackFlat}}
+	// b3
+	testBoard.Grid[4][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	// a1
-	testBoard.Grid[4][0] = Stack{[]Piece{whiteFlat, blackFlat, cowFlat, dogFlat, eggFlat}}
+	testBoard.Grid[4][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	// d4
-	// testBoard.Grid[1][3] = Stack{[]Piece{blackCapstone, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	testBoard.Grid[1][3] = Stack{[]Piece{blackCapstone, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	// c4
+	testBoard.Grid[3][3] = Stack{[]Piece{whiteWall}}
 
 	fmt.Printf("testboard: %v\n", testBoard.BoardID)
 

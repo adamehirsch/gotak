@@ -76,26 +76,69 @@ func TestBoardSquareEmpty(t *testing.T) {
 
 func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	firstPiece := Piece{"white", "flat"}
-	secondPiece := Piece{"black", "flat"}
-	thirdPiece := Piece{"white", "capstone"}
-	testBoard.Grid[4][1] = Stack{[]Piece{firstPiece, secondPiece}}
-	testBoard.Grid[0][0] = Stack{[]Piece{firstPiece, thirdPiece}}
-	testBoard.Grid[1][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+	whiteFlat := Piece{"white", "flat"}
+	blackFlat := Piece{"black", "flat"}
+	whiteCap := Piece{"white", "capstone"}
+	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteCap}}
+	testBoard.Grid[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
 		placement Placement
 		Problem   error
 	}{
-		{Placement{Coords: "b1", Piece: secondPiece}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
-		{Placement{Coords: "a5", Piece: secondPiece}, errors.New("bad placement request: Cannot place piece on occupied square a5")},
-		{Placement{Coords: "b2", Piece: firstPiece}, nil},
-		{Placement{Coords: "h1", Piece: secondPiece}, errors.New("bad placement request: h1: coordinates 'h1' larger than board size: 5")},
+		{Placement{Coords: "b1", Piece: whiteCap}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
+		{Placement{Coords: "a5", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square a5")},
+		{Placement{Coords: "b2", Piece: whiteFlat}, nil},
+		{Placement{Coords: "h1", Piece: blackFlat}, errors.New("bad placement request: h1: coordinates 'h1' larger than board size: 5")},
 	}
 
 	for _, c := range cases {
 		err := testBoard.PlacePiece(c.placement)
+		if testBoard.IsDarkTurn == true {
+			testBoard.IsDarkTurn = false
+		} else {
+			testBoard.IsDarkTurn = true
+		}
+		if reflect.DeepEqual(err, c.Problem) == false {
+			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.placement.Coords, err, c.Problem)
+		}
+
+	}
+}
+
+func TestTurnTaking(t *testing.T) {
+	testBoard := MakeGameBoard(5)
+	whiteFlat := Piece{"white", "flat"}
+	bogusFlat := Piece{"bogus", "flatworm"}
+	blackFlat := Piece{"black", "flat"}
+	whiteCap := Piece{"white", "capstone"}
+	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteCap}}
+	testBoard.Grid[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
+	testBoard.IsDarkTurn = true
+
+	// case-driven testing: The Bomb
+	cases := []struct {
+		placement Placement
+		Problem   error
+	}{
+		{Placement{Coords: "b1", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
+		{Placement{Coords: "a5", Piece: whiteCap}, errors.New("bad placement request: Cannot place piece on occupied square a5")},
+		{Placement{Coords: "b2", Piece: whiteFlat}, errors.New("bad placement request: Cannot place white piece on black turn")},
+		{Placement{Coords: "a4", Piece: blackFlat}, errors.New("bad placement request: Cannot place black piece on white turn")},
+		{Placement{Coords: "b3", Piece: bogusFlat}, errors.New("bad placement request: Invalid piece color 'bogus'")},
+		{Placement{Coords: "h1", Piece: whiteFlat}, errors.New("bad placement request: h1: coordinates 'h1' larger than board size: 5")},
+	}
+
+	for _, c := range cases {
+		err := testBoard.PlacePiece(c.placement)
+		if testBoard.IsDarkTurn == true {
+			testBoard.IsDarkTurn = false
+		} else {
+			testBoard.IsDarkTurn = true
+		}
 
 		if reflect.DeepEqual(err, c.Problem) == false {
 			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.placement.Coords, err, c.Problem)
