@@ -26,10 +26,10 @@ type Board struct {
 }
 
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
-var gameIndex = make(map[uuid.UUID]Board)
+var gameIndex = make(map[uuid.UUID]*Board)
 
 // MakeGameBoard takes an integer size and returns a Board
-func MakeGameBoard(size int) Board {
+func MakeGameBoard(size int) *Board {
 
 	// each board gets a unique, random UUIDv4
 	newUUID := uuid.NewV4()
@@ -45,8 +45,8 @@ func MakeGameBoard(size int) Board {
 
 	newBoard := Board{BoardID: newUUID, Grid: newGrid}
 
-	gameIndex[newUUID] = newBoard
-	return newBoard
+	gameIndex[newUUID] = &newBoard
+	return &newBoard
 }
 
 // LetterMap converts Tak files to their index value
