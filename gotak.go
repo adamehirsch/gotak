@@ -16,9 +16,9 @@ import (
 
 // TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
 func (b *Board) TranslateCoords(coords string) (rank int, file int, error error) {
-
+	coords = strings.ToLower(coords)
 	// look for coordinates in the form LetterNumber
-	r := regexp.MustCompile("^([a-mA-M])([1-9]|[1][0-3])$")
+	r := regexp.MustCompile("^([a-h])([1-8])$")
 	validcoords := r.FindAllStringSubmatch(coords, -1)
 	if len(validcoords) <= 0 {
 		return -1, -1, fmt.Errorf("Could not interpret coordinates '%v'", coords)
@@ -75,58 +75,136 @@ func (b *Board) PlacePiece(p Placement) error {
 	square := &b.Grid[rank][file]
 	// Place That Piece!
 	square.Pieces = append([]Piece{p.Piece}, square.Pieces...)
-	fmt.Printf("0>b.IsDarkTurn is %t\n", b.IsDarkTurn)
 	if b.IsDarkTurn == true {
-		fmt.Printf("1>b.IsDarkTurn is %t\n", b.IsDarkTurn)
 		b.IsDarkTurn = false
-		fmt.Printf("2>b.IsDarkTurn is %t\n", b.IsDarkTurn)
 	} else {
-		fmt.Printf("3>b.IsDarkTurn is %t\n", b.IsDarkTurn)
 		b.IsDarkTurn = true
-		fmt.Printf("4>b.IsDarkTurn is %t\n", b.IsDarkTurn)
-
 	}
-	fmt.Printf("5>b.IsDarkTurn is %t\n", b.IsDarkTurn)
 	return nil
 }
 
 //validatePlacement checks to see if a Placement order is okay to run
 func (b *Board) validatePlacement(p Placement) error {
 
-	if colorErr := p.Piece.ValidateColor(); colorErr != nil {
-		return colorErr
+	if invalidPiece := p.Piece.ValidatePiece(); invalidPiece != nil {
+		return invalidPiece
 	}
-	_, _, translateErr := b.TranslateCoords(p.Coords)
-	if translateErr != nil {
+
+	if _, _, translateErr := b.TranslateCoords(p.Coords); translateErr != nil {
 		return fmt.Errorf("%v: %v", p.Coords, translateErr)
 	}
-	squareIsEmpty, emptyErr := b.SquareIsEmpty(p.Coords)
 
+	squareIsEmpty, emptyErr := b.SquareIsEmpty(p.Coords)
+	tooManyCapstones := b.TooManyCapstones(p)
+	tooManyPieces := b.TooManyPieces(p)
 	rBlack := regexp.MustCompile("^(?i)black$")
 	rWhite := regexp.MustCompile("^(?i)white$")
-
-	fmt.Printf("-> coords %v color %s IsBlackTurn %t\n", p.Coords, p.Piece.Color, b.IsDarkTurn)
-
 	switch {
 	case emptyErr != nil:
 		return fmt.Errorf("Problem checking square %v: %v", p.Coords, emptyErr)
 	case b.IsDarkTurn && rWhite.MatchString(p.Piece.Color):
 		return errors.New("Cannot place white piece on black turn")
-	case (b.IsDarkTurn == false) && rBlack.MatchString(p.Piece.Color):
+	case b.IsDarkTurn == false && rBlack.MatchString(p.Piece.Color):
 		return errors.New("Cannot place black piece on white turn")
 	case squareIsEmpty != true:
 		return fmt.Errorf("Cannot place piece on occupied square %v", p.Coords)
+	case len(b.Grid) < 5 && p.Piece.Orientation == "capstone":
+		return errors.New("no capstones allowed in games smaller than 5x5")
+	case p.Piece.Orientation == "capstone" && tooManyCapstones != nil:
+		return tooManyCapstones
+	case tooManyPieces != nil:
+		return tooManyPieces
 	}
 	return nil
 }
 
-// ValidateColor checks for either
-func (p *Piece) ValidateColor() error {
-	r := regexp.MustCompile("^((?i)black|white)$")
-	goodPieceColor := r.FindString(p.Color)
-	if goodPieceColor == "" {
+// TooManyPieces checks for hitting a player's piece limit. This will need to be thought out a little more thoroughly,
+// since running out of pieces is a game-end condition.
+func (b *Board) TooManyPieces(p Placement) error {
+	placedPieces := map[string]int{
+		"black": 0,
+		"white": 0,
+	}
+	pieceLimits := map[int]int{
+		3: 10,
+		4: 15,
+		5: 21,
+		6: 30,
+		8: 50,
+	}
+
+	rBlack := regexp.MustCompile("^(?i)black$")
+	rWhite := regexp.MustCompile("^(?i)white$")
+	for i := 0; i < len(b.Grid); i++ {
+		for j := 0; j < len(b.Grid); j++ {
+			if len(b.Grid[i][j].Pieces) > 0 {
+				if rBlack.MatchString(b.Grid[i][j].Pieces[0].Color) {
+					placedPieces["black"]++
+				} else if rWhite.MatchString(b.Grid[i][j].Pieces[0].Color) {
+					placedPieces["white"]++
+				}
+			}
+		}
+	}
+	boardSize := len(b.Grid)
+	if placedPieces["black"] >= pieceLimits[boardSize] {
+		return errors.New("Black player is out of pieces")
+	} else if placedPieces["white"] >= pieceLimits[boardSize] {
+		return errors.New("White player is out of pieces")
+	}
+	return nil
+}
+
+// TooManyCapstones checks for the presence of too many capstones on the board and prevents placing another
+func (b *Board) TooManyCapstones(p Placement) error {
+	capstones := map[string]int{
+		"black": 0,
+		"white": 0,
+	}
+
+	rBlack := regexp.MustCompile("^(?i)black$")
+	rWhite := regexp.MustCompile("^(?i)white$")
+	for i := 0; i < len(b.Grid); i++ {
+		for j := 0; j < len(b.Grid); j++ {
+			if len(b.Grid[i][j].Pieces) > 0 && b.Grid[i][j].Pieces[0].Orientation == "capstone" {
+				if rBlack.MatchString(b.Grid[i][j].Pieces[0].Color) {
+					capstones["black"]++
+				} else if rWhite.MatchString(b.Grid[i][j].Pieces[0].Color) {
+					capstones["white"]++
+				}
+			}
+		}
+	}
+
+	capstoneLimit := 0
+	if len(b.Grid) == 8 {
+		capstoneLimit = 2
+	} else if len(b.Grid) >= 5 {
+		capstoneLimit = 1
+	}
+
+	if p.Piece.Orientation == "capstone" {
+		if p.Piece.Color == "white" && capstones["white"] >= capstoneLimit {
+			return fmt.Errorf("Board has already reached white capstone limit: %v", capstoneLimit)
+		} else if p.Piece.Color == "black" && capstones["black"] >= capstoneLimit {
+			return fmt.Errorf("Board has already reached black capstone limit: %v", capstoneLimit)
+		}
+	}
+	return nil
+}
+
+// ValidatePiece checks to make sure a piece is described correctly
+func (p *Piece) ValidatePiece() error {
+	rColor := regexp.MustCompile("^((?i)black|white)$")
+	rType := regexp.MustCompile("^((?i)flat|wall|capstone)")
+	if goodPieceColor := rColor.FindString(p.Color); goodPieceColor == "" {
 		return fmt.Errorf("Invalid piece color '%v'", p.Color)
 	}
+	if goodPieceType := rType.FindString(p.Orientation); goodPieceType == "" {
+		return fmt.Errorf("Invalid piece orientation '%v'", p.Orientation)
+	}
+	p.Color = strings.ToLower(p.Color)
+	p.Orientation = strings.ToLower(p.Orientation)
 	return nil
 }
 
@@ -142,6 +220,10 @@ func (b *Board) validateMovement(m Movement) error {
 	stackHeight := len(b.Grid[rank][file].Pieces)
 	moveTooBig := b.WouldHitBoardBoundary(m)
 	unparsableDirection := b.ValidMoveDirection(m)
+	var stackTop Piece
+	if len(b.Grid[rank][file].Pieces) > 0 {
+		stackTop = b.Grid[rank][file].Pieces[0]
+	}
 	var totalDrops, minDrop, maxDrop int
 	minDrop = 1
 	for _, drop := range m.Drops {
@@ -171,6 +253,10 @@ func (b *Board) validateMovement(m Movement) error {
 		return moveTooBig
 	case unparsableDirection != nil:
 		return unparsableDirection
+	case stackTop.Color == "white" && b.IsDarkTurn == true:
+		return errors.New("cannot move white-topped stack on black's turn")
+	case stackTop.Color == "black" && b.IsDarkTurn == false:
+		return errors.New("cannot move black-topped stack on white's turn")
 	}
 	return nil
 }
@@ -179,7 +265,7 @@ func (b *Board) validateMovement(m Movement) error {
 func (b *Board) MoveStack(movement Movement) error {
 
 	if err := b.validateMovement(movement); err != nil {
-		return fmt.Errorf("bad movement request: %v", err)
+		return fmt.Errorf("invalid move: %v", err)
 	}
 
 	// I've already validated the move above explicitly; assume no error
@@ -292,7 +378,6 @@ func main() {
 	r.HandleFunc("/", SlashHandler)
 	r.HandleFunc("/newgame/{boardSize}", NewGameHandler)
 	r.HandleFunc("/showgame/{gameID}", ShowGameHandler)
-	// r.Handle("/place/{gameID}", webHandler(PlaceMoveHandler)).Methods("PUT")
 	r.Handle("/action/{action}/{gameID}", webHandler(ActionHandler)).Methods("PUT")
 
 	// Bind to a port and pass our router in

@@ -30,7 +30,7 @@ Rules can [be found here](http://cheapass.com/wp-content/uploads/2017/01/TakShor
     - validate:
       - requested number of pieces to move does not exceed the size of the origin stack
       - requested number of pieces does not exceed the board's "carry limit", which is the board size
-      - drop sequence, if present, must drop at least one piece off at every space
+      - drop sequence must drop at least one piece off at every space
       - move may not leave the board
       - move may not cross a standing stone
         - UNLESS it's a capstone, by itself, landing on a standing stone in which case the standing stone changes its orientation to "flat"

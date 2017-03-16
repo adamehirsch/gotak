@@ -28,7 +28,7 @@ type Board struct {
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
 var gameIndex = make(map[uuid.UUID]*Board)
 
-// MakeGameBoard takes an integer size and returns a Board
+// MakeGameBoard takes an integer size and returns a &Board
 func MakeGameBoard(size int) *Board {
 
 	// each board gets a unique, random UUIDv4
@@ -59,11 +59,6 @@ var LetterMap = map[string]int{
 	"f": 5,
 	"g": 6,
 	"h": 7,
-	"i": 8,
-	"j": 9,
-	"k": 10,
-	"l": 11,
-	"m": 12,
 }
 
 // Placement descripts the necessary aspects to describe an action that places a new piece on the board

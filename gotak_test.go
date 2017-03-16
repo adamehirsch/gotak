@@ -6,14 +6,18 @@ import (
 	"testing"
 )
 
+var whiteFlat = Piece{"white", "flat"}
+var blackFlat = Piece{"black", "flat"}
+var whiteCap = Piece{"white", "capstone"}
+var blackCap = Piece{"black", "capstone"}
+var whiteWall = Piece{"white", "wall"}
+var blackWall = Piece{"black", "wall"}
+
 func TestBoardSizeLimits(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	firstPiece := Piece{"white", "flat"}
-	secondPiece := Piece{"black", "flat"}
-	thirdPiece := Piece{"white", "capstone"}
-	testBoard.Grid[4][0] = Stack{[]Piece{firstPiece, secondPiece}}
-	testBoard.Grid[0][2] = Stack{[]Piece{firstPiece, thirdPiece}}
-	testBoard.Grid[1][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+	testBoard.Grid[4][0] = Stack{[]Piece{whiteWall, blackFlat}}
+	testBoard.Grid[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
+	testBoard.Grid[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -21,8 +25,8 @@ func TestBoardSizeLimits(t *testing.T) {
 		stack   Stack
 		problem error
 	}{
-		{"a1", Stack{[]Piece{firstPiece, secondPiece}}, nil},
-		{"d4", Stack{[]Piece{thirdPiece, secondPiece}}, nil},
+		{"a1", Stack{[]Piece{whiteWall, blackFlat}}, nil},
+		{"d4", Stack{[]Piece{blackWall, whiteFlat}}, nil},
 		{"b2", Stack{}, nil},
 		{"f1", Stack{}, errors.New("coordinates 'f1' larger than board size: 5")},
 	}
@@ -42,12 +46,10 @@ func TestBoardSizeLimits(t *testing.T) {
 // verify that
 func TestBoardSquareEmpty(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	firstPiece := Piece{"white", "flat"}
-	secondPiece := Piece{"black", "flat"}
-	thirdPiece := Piece{"white", "capstone"}
-	testBoard.Grid[4][1] = Stack{[]Piece{firstPiece, secondPiece}}
-	testBoard.Grid[0][0] = Stack{[]Piece{firstPiece, thirdPiece}}
-	testBoard.Grid[1][3] = Stack{[]Piece{thirdPiece, secondPiece}}
+
+	testBoard.Grid[4][1] = Stack{[]Piece{whiteWall, blackFlat}}
+	testBoard.Grid[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
+	testBoard.Grid[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -56,7 +58,7 @@ func TestBoardSquareEmpty(t *testing.T) {
 		Problem error
 	}{
 		{"b1", false, nil},
-		{"a5", false, nil},
+		{"a5", true, nil},
 		{"b2", true, nil},
 		{"f1", false, errors.New("Problem checking coordinates 'f1': coordinates 'f1' larger than board size: 5")},
 	}
@@ -76,11 +78,8 @@ func TestBoardSquareEmpty(t *testing.T) {
 
 func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	whiteFlat := Piece{"white", "flat"}
-	blackFlat := Piece{"black", "flat"}
-	whiteCap := Piece{"white", "capstone"}
 	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
-	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteCap}}
+	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteFlat}}
 	testBoard.Grid[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
 
 	// case-driven testing: The Bomb
@@ -88,9 +87,9 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 		placement Placement
 		Problem   error
 	}{
-		{Placement{Coords: "b1", Piece: whiteCap}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
+		{Placement{Coords: "b1", Piece: whiteFlat}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
 		{Placement{Coords: "a5", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square a5")},
-		{Placement{Coords: "b2", Piece: whiteFlat}, nil},
+		{Placement{Coords: "b3", Piece: whiteWall}, nil},
 		{Placement{Coords: "h1", Piece: blackFlat}, errors.New("bad placement request: h1: coordinates 'h1' larger than board size: 5")},
 	}
 
@@ -110,10 +109,8 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 
 func TestTurnTaking(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	whiteFlat := Piece{"white", "flat"}
 	bogusFlat := Piece{"bogus", "flatworm"}
-	blackFlat := Piece{"black", "flat"}
-	whiteCap := Piece{"white", "capstone"}
+
 	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
 	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteCap}}
 	testBoard.Grid[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
@@ -145,4 +142,48 @@ func TestTurnTaking(t *testing.T) {
 		}
 
 	}
+}
+
+func TestValidMoveDirection(t *testing.T) {
+	testBoard := MakeGameBoard(5)
+
+	cases := []struct {
+		move    Movement
+		Problem error
+	}{
+		{Movement{Coords: "b2", Direction: "+", Carry: 1, Drops: []int{1}}, nil},
+		{Movement{Coords: "b2", Direction: "a", Carry: 1, Drops: []int{1}}, errors.New("Invalid movement direction 'a'")},
+	}
+
+	for _, c := range cases {
+		err := testBoard.ValidMoveDirection(c.move)
+		if reflect.DeepEqual(err, c.Problem) == false {
+			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.move, err, c.Problem)
+		}
+
+	}
+
+}
+
+func TestValidMovement(t *testing.T) {
+	testBoard := MakeGameBoard(5)
+	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, blackFlat}}
+
+	cases := []struct {
+		move    Movement
+		Problem error
+	}{
+		{Movement{Coords: "a5", Direction: "+", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed top board edge")},
+		{Movement{Coords: "b2", Direction: "a", Carry: 1, Drops: []int{1}}, errors.New("Cannot move non-existent stack: unoccupied square b2")},
+	}
+
+	for _, c := range cases {
+		err := testBoard.validateMovement(c.move)
+		if reflect.DeepEqual(err, c.Problem) == false {
+			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.move.Coords, err, c.Problem)
+		}
+
+	}
+
 }
