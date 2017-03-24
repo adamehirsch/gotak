@@ -48,10 +48,12 @@ var winningPath []Coords
 
 func (t *TakGame) nsCheck(s *Square) bool {
 	boardsize := len(t.GameBoard)
+	winningPath = append(winningPath, Coords{rank: s.rank, file: s.file})
 
 	if s.rank == (boardsize - 1) {
 		// the square being checked is on the very bottom row: success!
 		fmt.Printf("* square at %v, %v completes a NS path!\n", s.rank, s.file)
+		fmt.Printf("Winning Path: %v\n\n", winningPath)
 		return true
 	}
 	// get a list of orthogonal spaces (on the board)
@@ -72,6 +74,8 @@ func (t *TakGame) nsCheck(s *Square) bool {
 	}
 	// ... or, you know, fail
 	fmt.Printf("==> No NS path found, ending this particular check on square %v, %v\n", s.rank, s.file)
+	// trim last entry off
+	winningPath = winningPath[:len(winningPath)-1]
 	return false
 }
 

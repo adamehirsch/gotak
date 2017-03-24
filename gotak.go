@@ -429,6 +429,11 @@ func main() {
 	whiteCap := Piece{White, "capstone"}
 	// blackCap := Piece{Black, "capstone"}
 
+	// Board looks like this.
+	// .o..
+	// ooo.
+	// ..o.
+	// ..o.
 	testGame.GameBoard[0][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testGame.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
@@ -436,7 +441,6 @@ func main() {
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	testGame.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 
-	fmt.Printf("\nBoard: %v\n", testGame.GameBoard)
 	fmt.Printf("NS check: %v\n", testGame.NorthSouthCheck())
 
 	r := mux.NewRouter()
