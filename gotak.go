@@ -418,7 +418,7 @@ func (b *TakGame) WhoWins() (string, error) {
 }
 
 func main() {
-	testGame := MakeGameBoard(3)
+	testGame := MakeGameBoard(4)
 	testGame.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
 	gameIndex[testGame.GameID] = testGame
 
@@ -429,15 +429,14 @@ func main() {
 	whiteCap := Piece{White, "capstone"}
 	// blackCap := Piece{Black, "capstone"}
 
-	// c2
 	testGame.GameBoard[0][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-	// b2
 	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-	// b3
+	testGame.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	testGame.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	// a3
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 
+	fmt.Printf("\nBoard: %v\n", testGame.GameBoard)
 	fmt.Printf("NS check: %v\n", testGame.NorthSouthCheck())
 
 	r := mux.NewRouter()
