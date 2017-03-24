@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 )
@@ -15,9 +16,9 @@ var blackWall = Piece{"black", "wall"}
 
 func TestBoardSizeLimits(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	testBoard.Grid[4][0] = Stack{[]Piece{whiteWall, blackFlat}}
-	testBoard.Grid[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
-	testBoard.Grid[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
+	testBoard.GameBoard[4][0] = Stack{[]Piece{whiteWall, blackFlat}}
+	testBoard.GameBoard[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
+	testBoard.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -47,9 +48,9 @@ func TestBoardSizeLimits(t *testing.T) {
 func TestBoardSquareEmpty(t *testing.T) {
 	testBoard := MakeGameBoard(5)
 
-	testBoard.Grid[4][1] = Stack{[]Piece{whiteWall, blackFlat}}
-	testBoard.Grid[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
-	testBoard.Grid[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
+	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteWall, blackFlat}}
+	testBoard.GameBoard[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
+	testBoard.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -78,9 +79,9 @@ func TestBoardSquareEmpty(t *testing.T) {
 
 func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
-	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteFlat}}
-	testBoard.Grid[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
+	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat}}
+	testBoard.GameBoard[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -95,10 +96,10 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 
 	for _, c := range cases {
 		err := testBoard.PlacePiece(c.placement)
-		if testBoard.IsDarkTurn == true {
-			testBoard.IsDarkTurn = false
+		if testBoard.IsBlackTurn == true {
+			testBoard.IsBlackTurn = false
 		} else {
-			testBoard.IsDarkTurn = true
+			testBoard.IsBlackTurn = true
 		}
 		if reflect.DeepEqual(err, c.Problem) == false {
 			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.placement.Coords, err, c.Problem)
@@ -111,10 +112,10 @@ func TestTurnTaking(t *testing.T) {
 	testBoard := MakeGameBoard(5)
 	bogusFlat := Piece{"bogus", "flatworm"}
 
-	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
-	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, whiteCap}}
-	testBoard.Grid[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
-	testBoard.IsDarkTurn = true
+	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteCap}}
+	testBoard.GameBoard[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
+	testBoard.IsBlackTurn = true
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -131,16 +132,63 @@ func TestTurnTaking(t *testing.T) {
 
 	for _, c := range cases {
 		err := testBoard.PlacePiece(c.placement)
-		if testBoard.IsDarkTurn == true {
-			testBoard.IsDarkTurn = false
+		if testBoard.IsBlackTurn == true {
+			testBoard.IsBlackTurn = false
 		} else {
-			testBoard.IsDarkTurn = true
+			testBoard.IsBlackTurn = true
 		}
 
 		if reflect.DeepEqual(err, c.Problem) == false {
 			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.placement.Coords, err, c.Problem)
 		}
 
+	}
+}
+
+func TestEmptySquareDetection(t *testing.T) {
+	testGame := MakeGameBoard(5)
+
+	// b2
+	testGame.GameBoard[3][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	// c2
+	testGame.GameBoard[3][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	// a1
+	testGame.GameBoard[4][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	// d4
+	testGame.GameBoard[1][3] = Stack{[]Piece{blackCap, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	// c3
+	testGame.GameBoard[2][2] = Stack{[]Piece{whiteWall}}
+
+	cases := []struct {
+		coords string
+		empty  bool
+	}{
+		{"c3", false},
+		{"c4", true},
+	}
+
+	for _, c := range cases {
+		isEmpty, _ := testGame.SquareIsEmpty(c.coords)
+		if isEmpty != c.empty {
+			t.Errorf("coords %v SquareIsEmpty: '%v': should be '%v'\n", c.coords, isEmpty, c.empty)
+		}
+	}
+
+	c4Move := Movement{Coords: "c3", Direction: "+", Carry: 1, Drops: []int{1}}
+	testGame.MoveStack(c4Move)
+	cases = []struct {
+		coords string
+		empty  bool
+	}{
+		{"c3", true},
+		{"c4", false},
+	}
+
+	for _, c := range cases {
+		isEmpty, _ := testGame.SquareIsEmpty(c.coords)
+		if isEmpty != c.empty {
+			t.Errorf("Post-move: coords %v SquareIsEmpty: '%v': should be '%v'\n", c.coords, isEmpty, c.empty)
+		}
 	}
 }
 
@@ -167,8 +215,8 @@ func TestValidMoveDirection(t *testing.T) {
 
 func TestValidMovement(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	testBoard.Grid[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
-	testBoard.Grid[0][0] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.GameBoard[0][0] = Stack{[]Piece{whiteFlat, blackFlat}}
 
 	cases := []struct {
 		move    Movement
@@ -179,11 +227,59 @@ func TestValidMovement(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		err := testBoard.validateMovement(c.move)
+		err := testBoard.ValidateMovement(c.move)
 		if reflect.DeepEqual(err, c.Problem) == false {
 			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.move.Coords, err, c.Problem)
 		}
 
 	}
 
+}
+
+func TestCoordsAround(t *testing.T) {
+	testGame := MakeGameBoard(5)
+
+	// b2
+	testGame.GameBoard[3][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	// c2
+	testGame.GameBoard[3][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	// a1
+	testGame.GameBoard[4][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	// d4
+	testGame.GameBoard[1][3] = Stack{[]Piece{blackCap, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	// c3
+	testGame.GameBoard[2][2] = Stack{[]Piece{whiteWall}}
+
+	cases := []struct {
+		coords       string
+		coordsAround []Coords
+	}{
+		{"b2", []Coords{Coords{3, 0}, Coords{3, 2}, Coords{2, 1}, Coords{4, 1}}},
+		{"b5", []Coords{Coords{0, 0}, Coords{0, 2}, Coords{1, 1}}},
+		{"c2", []Coords{Coords{3, 1}, Coords{3, 3}, Coords{2, 2}, Coords{4, 2}}},
+		{"a1", []Coords{Coords{4, 1}, Coords{3, 0}}},
+	}
+
+	for _, c := range cases {
+		rank, file, _ := testGame.TranslateCoords(c.coords)
+		coordsAround := testGame.CoordsAround(rank, file)
+		if reflect.DeepEqual(coordsAround, c.coordsAround) == false {
+			t.Errorf("%v Wanted coords %v got CoordsAround %v\n", c.coords, c.coordsAround, coordsAround)
+		}
+	}
+}
+
+func TestNSPathSearch(t *testing.T) {
+	testGame := MakeGameBoard(3)
+
+	// c2
+	testGame.GameBoard[0][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	// b2
+	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	// b3
+	testGame.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	// a3
+	testGame.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+
+	fmt.Printf("NS check: %v\n", testGame.NorthSouthCheck())
 }

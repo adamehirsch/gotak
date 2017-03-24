@@ -4,6 +4,15 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// Various constants for use throughout the game
+const (
+	Flat     = "flat"
+	Standing = "standing"
+	Capstone = "capstone"
+	Black    = "black"
+	White    = "white"
+)
+
 // Piece is the most basic element of a Tak game. One of two colors; one of three types.
 type Piece struct {
 	// one of "black" or "white"
@@ -18,35 +27,38 @@ type Stack struct {
 	Pieces []Piece
 }
 
-// Board is an NxN grid of spaces, optionally occupied by Stacks of Pieces. A given Board has a guaranteed unique uuid
-type Board struct {
-	BoardID    uuid.UUID
-	Grid       [][]Stack
-	IsDarkTurn bool
+// TakGame is the general object representing an entire game, including a board, an id, and some metadata. A given TakGame has a guaranteed unique uuid
+type TakGame struct {
+	GameID        uuid.UUID
+	GameBoard     [][]Stack
+	IsBlackTurn   bool
+	IsBlackWinner bool
+	GameOver      bool
+	GameWinner    uuid.UUID
 }
 
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
-var gameIndex = make(map[uuid.UUID]*Board)
+var gameIndex = make(map[uuid.UUID]*TakGame)
 
-// MakeGameBoard takes an integer size and returns a &Board
-func MakeGameBoard(size int) *Board {
+// MakeGameBoard takes an integer size and returns a &GameBoard
+func MakeGameBoard(size int) *TakGame {
 
 	// each board gets a unique, random UUIDv4
 	newUUID := uuid.NewV4()
 
 	// first make the rows...
-	newGrid := make([][]Stack, size, size)
+	newGameBoard := make([][]Stack, size, size)
 
 	// ... then populate with the columns of spaces
 	for i := 0; i < size; i++ {
 		row := make([]Stack, size, size)
-		newGrid[i] = row
+		newGameBoard[i] = row
 	}
 
-	newBoard := Board{BoardID: newUUID, Grid: newGrid}
+	newTakGame := TakGame{GameID: newUUID, GameBoard: newGameBoard}
 
-	gameIndex[newUUID] = &newBoard
-	return &newBoard
+	gameIndex[newUUID] = &newTakGame
+	return &newTakGame
 }
 
 // LetterMap converts Tak files to their index value
