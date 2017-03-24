@@ -418,7 +418,7 @@ func (b *TakGame) WhoWins() (string, error) {
 }
 
 func main() {
-	testGame := MakeGameBoard(4)
+	testGame := MakeGameBoard(7)
 	testGame.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
 	gameIndex[testGame.GameID] = testGame
 
@@ -430,16 +430,32 @@ func main() {
 	// blackCap := Piece{Black, "capstone"}
 
 	// Board looks like this.
-	// .o..
-	// ooo.
-	// ..o.
-	// ..o.
+	// .o.....
+	// ooo....
+	// ..o....
+	// ..oooo.
+	// ooooooo
+	// .....o.
+	// .....o.
 	testGame.GameBoard[0][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testGame.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testGame.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	testGame.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.GameBoard[3][3] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[3][4] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[3][5] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[4][5] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[4][6] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[4][4] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[4][1] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[4][0] = Stack{[]Piece{whiteFlat}}
+
+	testGame.GameBoard[5][5] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[6][5] = Stack{[]Piece{whiteFlat}}
 
 	fmt.Printf("NS check: %v\n", testGame.NorthSouthCheck())
 
