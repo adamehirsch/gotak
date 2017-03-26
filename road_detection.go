@@ -7,6 +7,49 @@ type Coords struct {
 	rank, file int
 }
 
+// Square tracks a connected line of pieces through a board.
+type Square struct {
+	rank, file int
+	parent     *Square
+}
+
+// newSearchedSquare creates a new potential path step
+func newSearchedSquare(rank, file int) *Square {
+	square := &Square{
+		rank:   rank,
+		file:   file,
+		parent: nil,
+	}
+	return square
+}
+
+// squareSearched starts from the current Square and traces its parent and
+// parent's parents back to the beginning of the path, returning true if the
+// requested coordinates show up anywhere in the ancestry, and false if it's a
+// new location in this search run.
+func (s *Square) squareSearched(rank, file int) bool {
+	// the square doing the searching is looking to see whether the rank/file coords show up in its _own_ ancestry. Loop prevention.
+	parentSquare := s.parent
+	for parentSquare != nil {
+		if parentSquare.rank == rank && parentSquare.file == file {
+			return true
+		}
+		parentSquare = parentSquare.parent
+	}
+	return false
+}
+
+// OccupiedCoords returns a simple boolean if ... wait for it ... a square is empty
+func (t *TakGame) OccupiedCoords(rank, file int) bool {
+	grid := t.GameBoard
+	foundStack := grid[rank][file]
+	// far easier to compare length of a slice than to get fancy about comparing empty structs.
+	if len(foundStack.Pieces) != 0 {
+		return true
+	}
+	return false
+}
+
 // CoordsAround returns a series of rank/file coordinates for orthogonal positions around a given start point that don't exceed the board size.
 func (t *TakGame) CoordsAround(rank, file int) []Coords {
 	boardSize := len(t.GameBoard)
@@ -35,7 +78,7 @@ func (t *TakGame) NorthSouthCheck() bool {
 	for j := 0; j < len(t.GameBoard); j++ {
 		// only proceed if there's a piece on the top row
 		if t.OccupiedCoords(0, j) {
-			// Establish a path and send ns looking.
+			// Establish a path and send nsCheck looking.
 			if foundAPath := t.nsCheck(newSearchedSquare(0, j)); foundAPath == true {
 				return true
 			}
@@ -44,28 +87,22 @@ func (t *TakGame) NorthSouthCheck() bool {
 	return false
 }
 
-var winningPath []Coords
+var nsWinningPath []Coords
 
 func (t *TakGame) nsCheck(s *Square) bool {
 	boardsize := len(t.GameBoard)
-	winningPath = append(winningPath, Coords{rank: s.rank, file: s.file})
-	fmt.Printf("#### nsCheck new square at %v, %v ####\n", s.rank, s.file)
-
+	nsWinningPath = append(nsWinningPath, Coords{rank: s.rank, file: s.file})
 	if s.rank == (boardsize - 1) {
 		// the square being checked is on the very bottom row: success!
-		fmt.Printf("* square at %v, %v completes a NS path!\n", s.rank, s.file)
-		fmt.Printf("Winning Path: %v\n\n", winningPath)
+		fmt.Printf("NS Winning Path: %v\n\n", nsWinningPath)
 		return true
 	}
-	// get a list of orthogonal spaces (on the board)
+	// get a list of adjacent orthogonal spaces (on the board)
 	coordsNearby := t.CoordsAround(s.rank, s.file)
-	fmt.Printf("    * square at %v, %v needs coords checked: %v\n", s.rank, s.file, coordsNearby)
 	for _, c := range coordsNearby {
-		fmt.Printf(" - checking square at %v, %v with parent at %v, %v\n", c.rank, c.file, s.rank, s.file)
 
 		// if there's a piece on the board in an adjacent square that hasn't been seen...
 		if t.OccupiedCoords(c.rank, c.file) && !s.squareSearched(c.rank, c.file) {
-			fmt.Printf("      - creating new searchSquare at %v, %v\n", c.rank, c.file)
 			nextSquare := newSearchedSquare(c.rank, c.file)
 			nextSquare.parent = s
 			// let's get recursive all up in here. Keep drilling down until we get to the bottom of the board ...
@@ -75,54 +112,50 @@ func (t *TakGame) nsCheck(s *Square) bool {
 		}
 	}
 	// ... or, you know, fail
-	fmt.Printf("####> No NS path found, ending check on square %v, %v\n", s.rank, s.file)
 	// trim last entry off
-	winningPath = winningPath[:len(winningPath)-1]
+	nsWinningPath = nsWinningPath[:len(nsWinningPath)-1]
 	return false
 }
 
-// Square tracks a connected line of pieces through a board.
-type Square struct {
-	rank, file int
-	parent     *Square
-}
-
-func newSearchedSquare(rank, file int) *Square {
-	square := &Square{
-		rank:   rank,
-		file:   file,
-		parent: nil,
-	}
-	return square
-}
-
-// squareSearched returns true if a coord has been squareSearched...
-func (s *Square) squareSearched(rank, file int) bool {
-	fmt.Printf("    --> square %v, %v previously searched?\n", rank, file)
-	parentSquare := s.parent
-	for parentSquare != nil {
-		// iterate over each square's parents, back to the start of the search
-		// if a square's parent is at any point itself, it's been seen?  this loop prevention is not clear to me.
-		if parentSquare.rank == rank && parentSquare.file == file {
-			fmt.Printf("      --> square at %v, %v has parent %v, %v\n", s.rank, s.file, parentSquare.rank, parentSquare.file)
-			fmt.Printf("      --> squareSearched at %v, %v TRUE - shortcut search\n", s.rank, s.file)
-			return true
+// WestEastCheck looks for a horizontal path across the board
+func (t *TakGame) WestEastCheck() bool {
+	for j := 0; j < len(t.GameBoard); j++ {
+		// only proceed if there's a piece on the leftmost row
+		if t.OccupiedCoords(j, 0) {
+			// Establish a path and send weCheck looking.
+			if foundAPath := t.weCheck(newSearchedSquare(j, 0)); foundAPath == true {
+				return true
+			}
 		}
-		fmt.Printf("      --> following parent chain back to square %v\n", parentSquare.parent)
-		parentSquare = parentSquare.parent
 	}
-	fmt.Printf("    --> square %v, %v NEW!\n", rank, file)
 	return false
 }
 
-// OccupiedCoords returns a simple boolean to signal if ... wait for it ... a square is empty
-func (t *TakGame) OccupiedCoords(rank, file int) bool {
-	grid := t.GameBoard
-	foundStack := grid[rank][file]
-	// far easier to compare length of a slice than to get fancy about comparing empty structs.
-	fmt.Printf("    square at %v, %v is occupied? -> %v\n", rank, file, len(foundStack.Pieces) != 0)
-	if len(foundStack.Pieces) != 0 {
+var weWinningPath []Coords
+
+func (t *TakGame) weCheck(s *Square) bool {
+	boardsize := len(t.GameBoard)
+	weWinningPath = append(weWinningPath, Coords{rank: s.rank, file: s.file})
+	if s.file == (boardsize - 1) {
+		// the square being checked is on the very rightmost row: success!
+		fmt.Printf("Winning Path: %v\n\n", weWinningPath)
 		return true
 	}
+	// get a list of adjacent orthogonal spaces (on the board)
+	coordsNearby := t.CoordsAround(s.rank, s.file)
+	for _, c := range coordsNearby {
+
+		// if there's a piece on the board in an adjacent square that hasn't been seen...
+		if t.OccupiedCoords(c.rank, c.file) && !s.squareSearched(c.rank, c.file) {
+			nextSquare := newSearchedSquare(c.rank, c.file)
+			nextSquare.parent = s
+			// let's get recursive all up in here. Keep drilling down until we get to the bottom of the board ...
+			if found := t.weCheck(nextSquare); found {
+				return true
+			}
+		}
+	}
+	// ... or, you know, fail, and trim the last entry, which will not be part of the winning path
+	weWinningPath = weWinningPath[:len(weWinningPath)-1]
 	return false
 }

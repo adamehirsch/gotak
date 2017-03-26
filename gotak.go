@@ -430,22 +430,26 @@ func main() {
 	// blackCap := Piece{Black, "capstone"}
 
 	// Board looks like this.
-	// .o.....
-	// ooo....
-	// ..o....
-	// ..oooo.
+	// .o.o...
+	// oooo...
+	// o.o....
+	// o.o....
 	// ooooooo
-	// .....o.
+	// o....o.
 	// .....o.
 	testGame.GameBoard[0][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	testGame.GameBoard[0][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+
 	testGame.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testGame.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+
+	testGame.GameBoard[2][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+
+	testGame.GameBoard[3][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	testGame.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	testGame.GameBoard[3][3] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[3][4] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[3][5] = Stack{[]Piece{whiteFlat}}
 	testGame.GameBoard[4][5] = Stack{[]Piece{whiteFlat}}
 	testGame.GameBoard[4][6] = Stack{[]Piece{whiteFlat}}
 	testGame.GameBoard[4][4] = Stack{[]Piece{whiteFlat}}
@@ -453,11 +457,13 @@ func main() {
 	testGame.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
 	testGame.GameBoard[4][1] = Stack{[]Piece{whiteFlat}}
 	testGame.GameBoard[4][0] = Stack{[]Piece{whiteFlat}}
+	testGame.GameBoard[5][0] = Stack{[]Piece{whiteFlat}}
 
 	testGame.GameBoard[5][5] = Stack{[]Piece{whiteFlat}}
 	testGame.GameBoard[6][5] = Stack{[]Piece{whiteFlat}}
 
 	fmt.Printf("NS check: %v\n", testGame.NorthSouthCheck())
+	fmt.Printf("WE check: %v\n", testGame.WestEastCheck())
 
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
