@@ -263,8 +263,8 @@ func TestCoordsAround(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rank, file, _ := testGame.TranslateCoords(c.coords)
-		coordsAround := testGame.NearbyOccupiedCoords(rank, file)
+		y, x, _ := testGame.TranslateCoords(c.coords)
+		coordsAround := testGame.NearbyOccupiedCoords(y, x)
 		if reflect.DeepEqual(coordsAround, c.coordsAround) == false {
 			t.Errorf("%v Wanted coords %v got CoordsAround %v\n", c.coords, c.coordsAround, coordsAround)
 		}
@@ -378,22 +378,22 @@ func TestUnCoords(t *testing.T) {
 	whiteWin := MakeGameBoard(7)
 
 	testCoords := []struct {
-		rank, file int
+		y, x       int
 		coords     string
 		desiredErr error
 	}{
 		{0, 0, "a7", nil},
 		{2, 2, "c5", nil},
-		{8, 0, "", errors.New("rank '8' is out of bounds")},
+		{8, 0, "", errors.New("y '8' is out of bounds")},
 	}
 
 	for _, c := range testCoords {
-		coords, err := whiteWin.UnTranslateCoords(c.rank, c.file)
+		coords, err := whiteWin.UnTranslateCoords(c.y, c.x)
 		if coords != c.coords {
-			t.Errorf("%v, %v: wanted '%v', got '%v'", c.rank, c.file, c.coords, coords)
+			t.Errorf("%v, %v: wanted '%v', got '%v'", c.y, c.x, c.coords, coords)
 		}
 		if reflect.DeepEqual(err, c.desiredErr) != true {
-			t.Errorf("%v, %v: wanted '%v', got '%v'", c.rank, c.file, c.desiredErr, err)
+			t.Errorf("%v, %v: wanted '%v', got '%v'", c.y, c.x, c.desiredErr, err)
 		}
 	}
 }

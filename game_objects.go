@@ -80,7 +80,7 @@ func MakeGameBoard(size int) *TakGame {
 	return &newTakGame
 }
 
-// LetterMap converts Tak files to their index value. 8x8 games are the max size.
+// LetterMap converts Tak x-values (letters) to their start-at-zero grid index value. 8x8 games are the max size.
 var LetterMap = map[string]int{
 	"a": 0,
 	"b": 1,
@@ -92,6 +92,7 @@ var LetterMap = map[string]int{
 	"h": 7,
 }
 
+// NumberToLetter converts grid index values back to Tak x-values (letters)
 var NumberToLetter = map[int]string{
 	0: "a",
 	1: "b",
