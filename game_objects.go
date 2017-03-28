@@ -1,16 +1,20 @@
 package main
 
 import (
+	"time"
+
 	uuid "github.com/satori/go.uuid"
 )
 
 // Various constants for use throughout the game
 const (
-	Flat     = "flat"
-	Standing = "standing"
-	Capstone = "capstone"
-	Black    = "black"
-	White    = "white"
+	Flat       string = "flat"
+	Standing   string = "standing"
+	Capstone   string = "capstone"
+	Black      string = "black"
+	White      string = "white"
+	NorthSouth string = "NS"
+	WestEast   string = "WE"
 )
 
 // Piece is the most basic element of a Tak game. One of two colors; one of three types.
@@ -21,9 +25,9 @@ type Piece struct {
 	Orientation string `json:"orientation"`
 }
 
-// Stack is potentially a needless piece of structure; it's just a slice of Pieces... so maybe I could/should just refer to []Piece instead of having a distinct struct for it
+// Stack is just a slice of Pieces.
 type Stack struct {
-	// the top of the stack is at [0]
+	// Note: the "top" of the stack is at [0]
 	Pieces []Piece
 }
 
@@ -33,8 +37,21 @@ type TakGame struct {
 	GameBoard     [][]Stack
 	IsBlackTurn   bool
 	IsBlackWinner bool
+	IsWhiteWinner bool
+	DrawGame      bool
 	GameOver      bool
 	GameWinner    uuid.UUID
+	WinningPath   []Coords
+	WinTime       time.Time
+}
+
+// PieceLimits is a map of gridsize to piece limits per player
+var PieceLimits = map[int]int{
+	3: 10,
+	4: 15,
+	5: 21,
+	6: 30,
+	8: 50,
 }
 
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.

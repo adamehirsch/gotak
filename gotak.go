@@ -10,38 +10,37 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/satori/go.uuid"
 )
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
-func (b *TakGame) PlacePiece(p Placement) error {
-	if err := b.ValidatePlacement(p); err != nil {
+func (tg *TakGame) PlacePiece(p Placement) error {
+	if err := tg.ValidatePlacement(p); err != nil {
 		return fmt.Errorf("bad placement request: %v", err)
 	}
 	p.Piece.Color = strings.ToLower(p.Piece.Color)
-	rank, file, _ := b.TranslateCoords(p.Coords)
-	square := &b.GameBoard[rank][file]
+	rank, file, _ := tg.TranslateCoords(p.Coords)
+	square := &tg.GameBoard[rank][file]
 	// Place That Piece!
 	square.Pieces = append([]Piece{p.Piece}, square.Pieces...)
-	if b.IsBlackTurn == true {
-		b.IsBlackTurn = false
+	if tg.IsBlackTurn == true {
+		tg.IsBlackTurn = false
 	} else {
-		b.IsBlackTurn = true
+		tg.IsBlackTurn = true
 	}
 	return nil
 }
 
 // MoveStack moves a stack from a valid board position and return the updated board
-func (b *TakGame) MoveStack(movement Movement) error {
+func (tg *TakGame) MoveStack(movement Movement) error {
 
-	if err := b.ValidateMovement(movement); err != nil {
+	if err := tg.ValidateMovement(movement); err != nil {
 		return fmt.Errorf("invalid move: %v", err)
 	}
 
 	// I've already validated the move above explicitly; assume no error
-	rank, file, _ := b.TranslateCoords(movement.Coords)
+	rank, file, _ := tg.TranslateCoords(movement.Coords)
 	// pointer to the square where the movement originates
-	square := &b.GameBoard[rank][file]
+	square := &tg.GameBoard[rank][file]
 	// set up for the sequence of next squares the move will cover
 	var nextSquare *Stack
 	// create a new slice for the pieces in motion, and copy the top pieces from the origin square
@@ -56,16 +55,16 @@ func (b *TakGame) MoveStack(movement Movement) error {
 
 		switch movement.Direction {
 		case ">":
-			nextSquare = &b.GameBoard[rank][file+1]
+			nextSquare = &tg.GameBoard[rank][file+1]
 			file++
 		case "<":
-			nextSquare = &b.GameBoard[rank][file-1]
+			nextSquare = &tg.GameBoard[rank][file-1]
 			file--
 		case "+":
-			nextSquare = &b.GameBoard[rank-1][file]
+			nextSquare = &tg.GameBoard[rank-1][file]
 			rank--
 		case "-":
-			nextSquare = &b.GameBoard[rank+1][file]
+			nextSquare = &tg.GameBoard[rank+1][file]
 			rank++
 		default:
 			return fmt.Errorf("can't determine movement direction '%v'", movement.Direction)
@@ -76,40 +75,40 @@ func (b *TakGame) MoveStack(movement Movement) error {
 		movingStack = movingStack[:len(movingStack)-(DropCount)]
 	}
 
-	if b.IsBlackTurn == true {
-		b.IsBlackTurn = false
+	if tg.IsBlackTurn == true {
+		tg.IsBlackTurn = false
 	} else {
-		b.IsBlackTurn = true
+		tg.IsBlackTurn = true
 	}
 	return nil
 }
 
 //ValidatePlacement checks to see if a Placement order is okay to run
-func (b *TakGame) ValidatePlacement(p Placement) error {
+func (tg *TakGame) ValidatePlacement(p Placement) error {
 
 	if invalidPiece := p.Piece.ValidatePiece(); invalidPiece != nil {
 		return invalidPiece
 	}
 
-	if _, _, translateErr := b.TranslateCoords(p.Coords); translateErr != nil {
+	if _, _, translateErr := tg.TranslateCoords(p.Coords); translateErr != nil {
 		return fmt.Errorf("%v: %v", p.Coords, translateErr)
 	}
 
-	squareIsEmpty, emptyErr := b.SquareIsEmpty(p.Coords)
-	tooManyCapstones := b.TooManyCapstones(p)
-	tooManyPieces := b.TooManyPieces(p)
+	squareIsEmpty, emptyErr := tg.SquareIsEmpty(p.Coords)
+	tooManyCapstones := tg.TooManyCapstones(p)
+	tooManyPieces := tg.TooManyPieces(p)
 	rBlack := regexp.MustCompile("^(?i)black$")
 	rWhite := regexp.MustCompile("^(?i)white$")
 	switch {
 	case emptyErr != nil:
 		return fmt.Errorf("Problem checking square %v: %v", p.Coords, emptyErr)
-	case b.IsBlackTurn && rWhite.MatchString(p.Piece.Color):
+	case tg.IsBlackTurn && rWhite.MatchString(p.Piece.Color):
 		return errors.New("Cannot place white piece on black turn")
-	case b.IsBlackTurn == false && rBlack.MatchString(p.Piece.Color):
+	case tg.IsBlackTurn == false && rBlack.MatchString(p.Piece.Color):
 		return errors.New("Cannot place black piece on white turn")
 	case squareIsEmpty != true:
 		return fmt.Errorf("Cannot place piece on occupied square %v", p.Coords)
-	case len(b.GameBoard) < 5 && p.Piece.Orientation == Capstone:
+	case len(tg.GameBoard) < 5 && p.Piece.Orientation == Capstone:
 		return errors.New("no capstones allowed in games smaller than 5x5")
 	case p.Piece.Orientation == Capstone && tooManyCapstones != nil:
 		return tooManyCapstones
@@ -120,20 +119,20 @@ func (b *TakGame) ValidatePlacement(p Placement) error {
 }
 
 // ValidateMovement checks to see if a Movement order is okay to run.
-func (b *TakGame) ValidateMovement(m Movement) error {
+func (tg *TakGame) ValidateMovement(m Movement) error {
 
-	boardSize := len(b.GameBoard)
-	squareIsEmpty, emptyErr := b.SquareIsEmpty(m.Coords)
-	rank, file, translateErr := b.TranslateCoords(m.Coords)
+	boardSize := len(tg.GameBoard)
+	squareIsEmpty, emptyErr := tg.SquareIsEmpty(m.Coords)
+	rank, file, translateErr := tg.TranslateCoords(m.Coords)
 	if translateErr != nil {
 		return fmt.Errorf("%v: %v", m.Coords, translateErr)
 	}
-	stackHeight := len(b.GameBoard[rank][file].Pieces)
-	moveTooBig := b.WouldHitBoardBoundary(m)
-	unparsableDirection := b.ValidMoveDirection(m)
+	stackHeight := len(tg.GameBoard[rank][file].Pieces)
+	moveTooBig := tg.WouldHitBoardBoundary(m)
+	unparsableDirection := tg.ValidMoveDirection(m)
 	var stackTop Piece
-	if len(b.GameBoard[rank][file].Pieces) > 0 {
-		stackTop = b.GameBoard[rank][file].Pieces[0]
+	if len(tg.GameBoard[rank][file].Pieces) > 0 {
+		stackTop = tg.GameBoard[rank][file].Pieces[0]
 	}
 	var totalDrops, minDrop, maxDrop int
 	minDrop = 1
@@ -154,7 +153,7 @@ func (b *TakGame) ValidateMovement(m Movement) error {
 		return fmt.Errorf("Cannot move non-existent stack: unoccupied square %v", m.Coords)
 	case m.Carry > stackHeight:
 		return fmt.Errorf("Stack at %v is %v high - cannot carry %v pieces", m.Coords, stackHeight, m.Carry)
-	case m.Carry > len(b.GameBoard):
+	case m.Carry > len(tg.GameBoard):
 		return fmt.Errorf("Requested carry of %v pieces exceeds board carry limit: %v", m.Carry, boardSize)
 	case totalDrops > m.Carry:
 		return fmt.Errorf("Requested drops (%v) exceed number of pieces carried (%v)", m.Drops, m.Carry)
@@ -164,9 +163,9 @@ func (b *TakGame) ValidateMovement(m Movement) error {
 		return moveTooBig
 	case unparsableDirection != nil:
 		return unparsableDirection
-	case stackTop.Color == White && b.IsBlackTurn == true:
+	case stackTop.Color == White && tg.IsBlackTurn == true:
 		return errors.New("cannot move white-topped stack on black's turn")
-	case stackTop.Color == Black && b.IsBlackTurn == false:
+	case stackTop.Color == Black && tg.IsBlackTurn == false:
 		return errors.New("cannot move black-topped stack on white's turn")
 	}
 	return nil
@@ -188,7 +187,7 @@ func (p *Piece) ValidatePiece() error {
 }
 
 // TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
-func (b *TakGame) TranslateCoords(coords string) (rank int, file int, error error) {
+func (tg *TakGame) TranslateCoords(coords string) (rank int, file int, error error) {
 	coords = strings.ToLower(coords)
 	// look for coordinates in the form LetterNumber
 	r := regexp.MustCompile("^([a-h])([1-8])$")
@@ -202,7 +201,7 @@ func (b *TakGame) TranslateCoords(coords string) (rank int, file int, error erro
 	// of the board, so to get the right slice position for the ranks, I've got to do the math below.
 	file = LetterMap[validcoords[0][1]]
 	rank, err := strconv.Atoi(validcoords[0][2])
-	boardSize := len(b.GameBoard)
+	boardSize := len(tg.GameBoard)
 	rank = (boardSize - 1) - (rank - 1)
 
 	switch {
@@ -215,9 +214,9 @@ func (b *TakGame) TranslateCoords(coords string) (rank int, file int, error erro
 }
 
 // SquareContents looks at a given spot on a given board and returns what's there
-func (b *TakGame) SquareContents(coords string) (Stack, error) {
-	grid := b.GameBoard
-	rank, file, err := b.TranslateCoords(coords)
+func (tg *TakGame) SquareContents(coords string) (Stack, error) {
+	grid := tg.GameBoard
+	rank, file, err := tg.TranslateCoords(coords)
 	if err != nil {
 		return Stack{}, err
 	}
@@ -226,8 +225,8 @@ func (b *TakGame) SquareContents(coords string) (Stack, error) {
 }
 
 // SquareIsEmpty returns a simple boolean to signal if ... wait for it ... a square is empty
-func (b *TakGame) SquareIsEmpty(coords string) (bool, error) {
-	foundStack, err := b.SquareContents(coords)
+func (tg *TakGame) SquareIsEmpty(coords string) (bool, error) {
+	foundStack, err := tg.SquareContents(coords)
 	if err != nil {
 		return false, fmt.Errorf("Problem checking coordinates '%v': %v", coords, err)
 	}
@@ -240,30 +239,20 @@ func (b *TakGame) SquareIsEmpty(coords string) (bool, error) {
 
 // TooManyPieces checks for hitting a player's piece limit. This will need to be thought out a little more thoroughly,
 // since running out of pieces is a game-end condition.
-func (b *TakGame) TooManyPieces(p Placement) error {
-	placedPieces, err := b.CountPieces()
-	if err != nil {
-		return err
-	}
-	pieceLimits := map[int]int{
-		3: 10,
-		4: 15,
-		5: 21,
-		6: 30,
-		8: 50,
-	}
+func (tg *TakGame) TooManyPieces(p Placement) error {
+	_, totalPlacedPieces := tg.CountAllPlacedPieces()
 
-	boardSize := len(b.GameBoard)
-	if (*placedPieces)[Black] >= pieceLimits[boardSize] {
+	boardSize := len(tg.GameBoard)
+	if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
 		return errors.New("Black player is out of pieces")
-	} else if (*placedPieces)[White] >= pieceLimits[boardSize] {
+	} else if totalPlacedPieces[White] >= PieceLimits[boardSize] {
 		return errors.New("White player is out of pieces")
 	}
 	return nil
 }
 
 // TooManyCapstones checks for the presence of too many capstones on the board and prevents placing another
-func (b *TakGame) TooManyCapstones(p Placement) error {
+func (tg *TakGame) TooManyCapstones(p Placement) error {
 	capstones := map[string]int{
 		Black: 0,
 		White: 0,
@@ -271,12 +260,12 @@ func (b *TakGame) TooManyCapstones(p Placement) error {
 
 	rBlack := regexp.MustCompile("^(?i)black$")
 	rWhite := regexp.MustCompile("^(?i)white$")
-	for i := 0; i < len(b.GameBoard); i++ {
-		for j := 0; j < len(b.GameBoard); j++ {
-			if len(b.GameBoard[i][j].Pieces) > 0 && b.GameBoard[i][j].Pieces[0].Orientation == "capstone" {
-				if rBlack.MatchString(b.GameBoard[i][j].Pieces[0].Color) {
+	for i := 0; i < len(tg.GameBoard); i++ {
+		for j := 0; j < len(tg.GameBoard); j++ {
+			if len(tg.GameBoard[i][j].Pieces) > 0 && tg.GameBoard[i][j].Pieces[0].Orientation == Capstone {
+				if rBlack.MatchString(tg.GameBoard[i][j].Pieces[0].Color) {
 					capstones[Black]++
-				} else if rWhite.MatchString(b.GameBoard[i][j].Pieces[0].Color) {
+				} else if rWhite.MatchString(tg.GameBoard[i][j].Pieces[0].Color) {
 					capstones[White]++
 				}
 			}
@@ -284,13 +273,15 @@ func (b *TakGame) TooManyCapstones(p Placement) error {
 	}
 
 	capstoneLimit := 0
-	if len(b.GameBoard) == 8 {
+
+	switch {
+	case len(tg.GameBoard) == 8:
 		capstoneLimit = 2
-	} else if len(b.GameBoard) >= 5 {
+	case len(tg.GameBoard) >= 5:
 		capstoneLimit = 1
 	}
 
-	if p.Piece.Orientation == "capstone" {
+	if p.Piece.Orientation == Capstone {
 		if p.Piece.Color == White && capstones[White] >= capstoneLimit {
 			return fmt.Errorf("Board has already reached white capstone limit: %v", capstoneLimit)
 		} else if p.Piece.Color == Black && capstones[Black] >= capstoneLimit {
@@ -301,10 +292,10 @@ func (b *TakGame) TooManyCapstones(p Placement) error {
 }
 
 // WouldHitBoardBoundary checks whether a given move exceeds the board size
-func (b *TakGame) WouldHitBoardBoundary(m Movement) error {
-	boardSize := len(b.GameBoard)
-	badMove := b.ValidMoveDirection(m)
-	rank, file, translateError := b.TranslateCoords(m.Coords)
+func (tg *TakGame) WouldHitBoardBoundary(m Movement) error {
+	boardSize := len(tg.GameBoard)
+	badMove := tg.ValidMoveDirection(m)
+	rank, file, translateError := tg.TranslateCoords(m.Coords)
 	if badMove != nil {
 		return fmt.Errorf("can't parse move direction '%v'", m.Direction)
 	}
@@ -325,7 +316,7 @@ func (b *TakGame) WouldHitBoardBoundary(m Movement) error {
 }
 
 // ValidMoveDirection checks that the move direction is correct
-func (b *TakGame) ValidMoveDirection(m Movement) error {
+func (tg *TakGame) ValidMoveDirection(m Movement) error {
 	r := regexp.MustCompile("^[+-<>]$")
 	goodDirection := r.MatchString(m.Direction)
 	if goodDirection == false {
@@ -335,135 +326,105 @@ func (b *TakGame) ValidMoveDirection(m Movement) error {
 }
 
 // IsGameOver detects whether the given game is over
-func (b *TakGame) IsGameOver() (bool, error) {
-	placedPieces, err := b.CountPieces()
-	if err != nil {
-		return false, err
-	}
-	pieceLimits := map[int]int{
-		3: 10,
-		4: 15,
-		5: 21,
-		6: 30,
-		8: 50,
-	}
+func (tg *TakGame) IsGameOver() bool {
+	_, totalPlacedPieces := tg.CountAllPlacedPieces()
 
-	boardSize := len(b.GameBoard)
-	if (*placedPieces)[Black] >= pieceLimits[boardSize] {
-		return true, nil
-	} else if (*placedPieces)[White] >= pieceLimits[boardSize] {
-		return true, nil
+	boardSize := len(tg.GameBoard)
+	if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
+		return true
+	} else if totalPlacedPieces[White] >= PieceLimits[boardSize] {
+		return true
 	}
 
 	flatWin := true
 	// look for a Flat Win
-	for i := 0; i < len(b.GameBoard); i++ {
-		for j := 0; j < len(b.GameBoard); j++ {
-			if len(b.GameBoard[i][j].Pieces) == 0 {
+	for i := 0; i < len(tg.GameBoard); i++ {
+		for j := 0; j < len(tg.GameBoard); j++ {
+			if len(tg.GameBoard[i][j].Pieces) == 0 {
 				// there's at least one empty square; no flat Win
 				flatWin = false
 			}
 		}
 	}
 	if flatWin == true {
-		return true, nil
+		return true
 	}
 
-	// TK: implement @lyda's road detection.
+	if tg.RoadWinCheck(Black) || tg.RoadWinCheck(White) {
+		return true
+	}
 
-	return false, nil
+	return false
 }
 
-// CountPieces counts how many black/white pieces are on the board, total
-func (b *TakGame) CountPieces() (*map[string]int, error) {
-	placedPieces := map[string]int{
+// CountAllPlacedPieces counts how many black/white pieces top stacks on the board, total
+func (tg *TakGame) CountAllPlacedPieces() (stackTops map[string]int, totalPlacedPieces map[string]int) {
+
+	stackTops = map[string]int{
 		Black: 0,
 		White: 0,
 	}
-
+	totalPlacedPieces = map[string]int{
+		Black: 0,
+		White: 0,
+	}
 	rBlack := regexp.MustCompile("^(?i)black$")
 	rWhite := regexp.MustCompile("^(?i)white$")
-	for i := 0; i < len(b.GameBoard); i++ {
-		for j := 0; j < len(b.GameBoard); j++ {
-			if len(b.GameBoard[i][j].Pieces) > 0 {
-				if rBlack.MatchString(b.GameBoard[i][j].Pieces[0].Color) {
-					placedPieces[Black]++
-				} else if rWhite.MatchString(b.GameBoard[i][j].Pieces[0].Color) {
-					placedPieces[White]++
+	for i := 0; i < len(tg.GameBoard); i++ {
+		for j := 0; j < len(tg.GameBoard); j++ {
+			if len(tg.GameBoard[i][j].Pieces) > 0 {
+				if rBlack.MatchString(tg.GameBoard[i][j].Pieces[0].Color) {
+					stackTops[Black]++
+				} else if rWhite.MatchString(tg.GameBoard[i][j].Pieces[0].Color) {
+					stackTops[White]++
+				}
+				for p := 0; p < len(tg.GameBoard[i][j].Pieces); p++ {
+					if rBlack.MatchString(tg.GameBoard[i][j].Pieces[p].Color) {
+						totalPlacedPieces[Black]++
+					} else if rWhite.MatchString(tg.GameBoard[i][j].Pieces[p].Color) {
+						totalPlacedPieces[White]++
+					}
 				}
 			}
 		}
 	}
-	return &placedPieces, nil
+	return stackTops, totalPlacedPieces
 }
 
 // WhoWins determines who has won the game
-func (b *TakGame) WhoWins() (string, error) {
-	placedPieces, err := b.CountPieces()
-	if err != nil {
-		return "", err
+func (tg *TakGame) WhoWins() (string, error) {
+	if tg.IsGameOver() == false {
+		return "", errors.New("Game is not over, yet")
 	}
-	if (*placedPieces)[Black] > (*placedPieces)[White] {
-		b.IsBlackWinner = true
+	stackTops, _ := tg.CountAllPlacedPieces()
+
+	switch {
+	case tg.IsBlackTurn && tg.RoadWinCheck(Black):
+		tg.IsBlackWinner = true
+		return "Black makes a road win!", nil
+	case tg.IsBlackTurn == false && tg.RoadWinCheck(White):
+		tg.IsWhiteWinner = true
+		return "White makes a road win!", nil
+	case tg.RoadWinCheck(Black):
+		tg.IsBlackWinner = true
+		return "Black makes a road win!", nil
+	case tg.RoadWinCheck(White):
+		tg.IsWhiteWinner = true
+		return "White makes a road win!", nil
+	case stackTops[Black] > stackTops[White]:
+		tg.IsBlackWinner = true
 		return "Black makes a Flat Win!", nil
-	} else if (*placedPieces)[White] > (*placedPieces)[Black] {
-		b.IsBlackWinner = false
+	case stackTops[White] > stackTops[Black]:
+		tg.IsWhiteWinner = true
 		return "White makes a Flat Win!", nil
-	} else if (*placedPieces)[White] == (*placedPieces)[Black] {
+	case stackTops[White] == stackTops[Black]:
+		tg.DrawGame = true
 		return "Game ends in a draw!", nil
 	}
-
-	// put in @lyda's road detection code here
 	return "", nil
 }
 
 func main() {
-	testGame := MakeGameBoard(7)
-	testGame.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
-	gameIndex[testGame.GameID] = testGame
-
-	whiteFlat := Piece{White, "flat"}
-	blackFlat := Piece{Black, "flat"}
-	// whiteWall := Piece{White, "wall"}
-	blackWall := Piece{Black, "wall"}
-	whiteCap := Piece{White, "capstone"}
-	// blackCap := Piece{Black, "capstone"}
-
-	// Board looks like this.
-	// .o.o...
-	// oooo...
-	// o.o....
-	// o.o....
-	// ooooooo
-	// o....o.
-	// .....o.
-	testGame.GameBoard[0][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-	testGame.GameBoard[0][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-
-	testGame.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-	testGame.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	testGame.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-
-	testGame.GameBoard[2][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	testGame.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-
-	testGame.GameBoard[3][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	testGame.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	testGame.GameBoard[4][5] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[4][6] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[4][4] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[4][1] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[4][0] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[5][0] = Stack{[]Piece{whiteFlat}}
-
-	testGame.GameBoard[5][5] = Stack{[]Piece{whiteFlat}}
-	testGame.GameBoard[6][5] = Stack{[]Piece{whiteFlat}}
-
-	fmt.Printf("NS check: %v\n", testGame.NorthSouthCheck())
-	fmt.Printf("WE check: %v\n", testGame.WestEastCheck())
 
 	r := mux.NewRouter()
 	// Routes consist of a path and a handler function.
