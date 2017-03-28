@@ -22,6 +22,7 @@ Rules can [be found here](http://cheapass.com/wp-content/uploads/2017/01/TakShor
       - destination square is empty
       - player has not played more than their allowed number of capstones
   - MOVE
+    - First moves of the game involve placing one stone of the opposite color. Bah.
     - needed info:
       - Origin square
       - direction of move (+, -, >, <)

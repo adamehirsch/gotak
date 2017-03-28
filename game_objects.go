@@ -31,7 +31,7 @@ type Stack struct {
 	Pieces []Piece
 }
 
-// TakGame is the general object representing an entire game, including a board, an id, and some metadata. A given TakGame has a guaranteed unique uuid
+// TakGame is the general object representing an entire game, including a board, an id, and some metadata.
 type TakGame struct {
 	GameID        uuid.UUID
 	GameBoard     [][]Stack
@@ -43,6 +43,8 @@ type TakGame struct {
 	GameWinner    uuid.UUID
 	WinningPath   []Coords
 	WinTime       time.Time
+	BlackPlayer   uuid.UUID
+	WhitePlayer   uuid.UUID
 }
 
 // PieceLimits is a map of gridsize to piece limits per player
@@ -78,7 +80,7 @@ func MakeGameBoard(size int) *TakGame {
 	return &newTakGame
 }
 
-// LetterMap converts Tak files to their index value
+// LetterMap converts Tak files to their index value. 8x8 games are the max size.
 var LetterMap = map[string]int{
 	"a": 0,
 	"b": 1,
@@ -88,6 +90,17 @@ var LetterMap = map[string]int{
 	"f": 5,
 	"g": 6,
 	"h": 7,
+}
+
+var NumberToLetter = map[int]string{
+	0: "a",
+	1: "b",
+	2: "c",
+	3: "d",
+	4: "e",
+	5: "f",
+	6: "g",
+	7: "h",
 }
 
 // Placement descripts the necessary aspects to describe an action that places a new piece on the board

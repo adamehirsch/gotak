@@ -34,9 +34,11 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 
 	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
 		newGame := MakeGameBoard(boardsize)
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "grid size: %v\n", vars["boardSize"])
-		fmt.Fprintf(w, "UUID: %v\n", newGame.GameID)
+		if err := json.NewEncoder(w).Encode(newGame); err != nil {
+			panic(err)
+		}
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Could not understand requested board size: %v\n", vars["boardSize"])
@@ -52,7 +54,7 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 		if requestedGame, ok := gameIndex[gameID]; ok == true {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			if err := json.NewEncoder(w).Encode(requestedGame.GameBoard); err != nil {
+			if err := json.NewEncoder(w).Encode(requestedGame); err != nil {
 				panic(err)
 			}
 

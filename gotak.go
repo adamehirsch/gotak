@@ -147,6 +147,10 @@ func (tg *TakGame) ValidateMovement(m Movement) error {
 	}
 
 	switch {
+	case stackTop.Color == White && tg.IsBlackTurn == true:
+		return errors.New("cannot move white-topped stack on black's turn")
+	case stackTop.Color == Black && tg.IsBlackTurn == false:
+		return errors.New("cannot move black-topped stack on white's turn")
 	case emptyErr != nil:
 		return fmt.Errorf("Problem checking square %v: %v", m.Coords, emptyErr)
 	case squareIsEmpty == true:
@@ -163,10 +167,7 @@ func (tg *TakGame) ValidateMovement(m Movement) error {
 		return moveTooBig
 	case unparsableDirection != nil:
 		return unparsableDirection
-	case stackTop.Color == White && tg.IsBlackTurn == true:
-		return errors.New("cannot move white-topped stack on black's turn")
-	case stackTop.Color == Black && tg.IsBlackTurn == false:
-		return errors.New("cannot move black-topped stack on white's turn")
+
 	}
 	return nil
 }
@@ -211,6 +212,21 @@ func (tg *TakGame) TranslateCoords(coords string) (rank int, file int, error err
 		return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], boardSize)
 	}
 	return rank, file, nil
+}
+
+// UnTranslateCoords converts x, y coords back into human-readable Tak coords
+func (tg *TakGame) UnTranslateCoords(rank int, file int) (string, error) {
+	boardSize := len(tg.GameBoard)
+	if 0 > rank || rank > boardSize {
+		return "", fmt.Errorf("rank '%v' is out of bounds", rank)
+	}
+	number := boardSize - rank
+
+	letter, ok := NumberToLetter[file]
+	if ok == false {
+		return "", fmt.Errorf("file '%v' is out of bounds", file)
+	}
+	return fmt.Sprintf("%v%d", letter, number), nil
 }
 
 // SquareContents looks at a given spot on a given board and returns what's there
@@ -357,13 +373,14 @@ func (tg *TakGame) IsGameOver() bool {
 	return false
 }
 
-// CountAllPlacedPieces counts how many black/white pieces top stacks on the board, total
+// CountAllPlacedPieces counts how many black/white pieces top stacks on the board, as well as total placed pieces
 func (tg *TakGame) CountAllPlacedPieces() (stackTops map[string]int, totalPlacedPieces map[string]int) {
 
 	stackTops = map[string]int{
 		Black: 0,
 		White: 0,
 	}
+
 	totalPlacedPieces = map[string]int{
 		Black: 0,
 		White: 0,

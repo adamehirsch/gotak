@@ -373,3 +373,27 @@ func TestRoadWin(t *testing.T) {
 	}
 
 }
+
+func TestUnCoords(t *testing.T) {
+	whiteWin := MakeGameBoard(7)
+
+	testCoords := []struct {
+		rank, file int
+		coords     string
+		desiredErr error
+	}{
+		{0, 0, "a7", nil},
+		{2, 2, "c5", nil},
+		{8, 0, "", errors.New("rank '8' is out of bounds")},
+	}
+
+	for _, c := range testCoords {
+		coords, err := whiteWin.UnTranslateCoords(c.rank, c.file)
+		if coords != c.coords {
+			t.Errorf("%v, %v: wanted '%v', got '%v'", c.rank, c.file, c.coords, coords)
+		}
+		if reflect.DeepEqual(err, c.desiredErr) != true {
+			t.Errorf("%v, %v: wanted '%v', got '%v'", c.rank, c.file, c.desiredErr, err)
+		}
+	}
+}
