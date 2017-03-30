@@ -58,6 +58,7 @@ type TakGame struct {
 }
 
 // PieceLimits is a map of gridsize to piece limits per player
+// note there's no limit listed for 7x7 games, which are "rarely played"
 var PieceLimits = map[int]int{
 	3: 10,
 	4: 15,

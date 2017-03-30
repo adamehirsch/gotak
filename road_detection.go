@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 // Coords are just an y, x pair
 type Coords struct {
 	y, x int
@@ -95,14 +93,13 @@ func (tg *TakGame) IsRoadWin(color string) bool {
 	return false
 }
 
-var tempWinningPath []string
-
 func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
+	tempWinningPath := make([]string, 2*len(tg.GameBoard))
 
 	boardsize := len(tg.GameBoard)
 	humanCoords, _ := tg.UnTranslateCoords(s.y, s.x)
 	tempWinningPath = append(tempWinningPath, humanCoords)
-	fmt.Printf("before: %v\n", tg.WinningPath)
+	// fmt.Printf("before: %v\n", tg.WinningPath)
 
 	// if tg.GameOver == false {
 	// 	// only do this once; we sometimes re-run the RoadCheck
@@ -136,7 +133,7 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 			nextSquare.parent = s
 			// let's get recursive all up in here. Keep drilling down until we get to the bottom of the board ...
 			if found := tg.roadCheck(nextSquare, dir, color); found {
-				fmt.Printf(" bingo: %v\n", tempWinningPath)
+				// fmt.Printf(" bingo: %v\n", tempWinningPath)
 				tg.WinningPath = tempWinningPath
 				return true
 			}
@@ -146,7 +143,7 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 	// last entry, which will not be part of the winning path
 	// fmt.Printf("pruning %v\n", tg.WinningPath[len(tg.WinningPath)-1:])
 	tempWinningPath = tempWinningPath[:len(tempWinningPath)-1]
-	fmt.Printf(" after: %v\n", tempWinningPath)
+	// fmt.Printf(" after: %v\n", tempWinningPath)
 	// if tg.GameOver == false {
 	// }
 	return false

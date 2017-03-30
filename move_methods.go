@@ -361,9 +361,8 @@ func (tg *TakGame) ValidMoveDirection(m Movement) error {
 
 // IsGameOver detects whether the given game is over
 func (tg *TakGame) IsGameOver() bool {
-	_, totalPlacedPieces := tg.CountAllPlacedPieces()
-
 	boardSize := len(tg.GameBoard)
+	_, totalPlacedPieces := tg.CountAllPlacedPieces()
 	if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
 		tg.GameOver = true
 		return true
@@ -379,7 +378,7 @@ func (tg *TakGame) IsGameOver() bool {
 
 	if tg.IsRoadWin(Black) || tg.IsRoadWin(White) {
 		tg.GameOver = true
-		fmt.Printf("-> winning path: %v\n", tg.WinningPath)
+		// fmt.Printf("-> winning path: %v\n", tg.WinningPath)
 		return true
 	}
 
@@ -444,7 +443,6 @@ func (tg *TakGame) WhoWins() (string, error) {
 		return "", errors.New("game is not over, yet")
 	}
 	stackTops, _ := tg.CountAllPlacedPieces()
-
 	switch {
 	case tg.IsBlackTurn && tg.IsRoadWin(Black):
 		tg.BlackWinner = true
