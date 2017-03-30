@@ -1,5 +1,10 @@
 package main
 
+import (
+	"fmt"
+	"strings"
+)
+
 // Coords are just an y, x pair
 type Coords struct {
 	y, x int
@@ -94,11 +99,11 @@ func (tg *TakGame) IsRoadWin(color string) bool {
 }
 
 func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
-	tempWinningPath := make([]string, 2*len(tg.GameBoard))
+	// tempWinningPath := make([]string, 2*len(tg.GameBoard))
 
 	boardsize := len(tg.GameBoard)
 	humanCoords, _ := tg.UnTranslateCoords(s.y, s.x)
-	tempWinningPath = append(tempWinningPath, humanCoords)
+	tg.WinningPath = append(tg.WinningPath, humanCoords)
 	// fmt.Printf("before: %v\n", tg.WinningPath)
 
 	// if tg.GameOver == false {
@@ -120,6 +125,7 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 	if thisPiecePosition == (boardsize - 1) {
 		// the square being checked is on the rightmost or bottom row:
 		// declare success and shortcut the rest of the search.
+		// fmt.Printf("Success: current wp is %v\n\n", tg.WinningPath)
 		return true
 	}
 
@@ -133,8 +139,7 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 			nextSquare.parent = s
 			// let's get recursive all up in here. Keep drilling down until we get to the bottom of the board ...
 			if found := tg.roadCheck(nextSquare, dir, color); found {
-				// fmt.Printf(" bingo: %v\n", tempWinningPath)
-				tg.WinningPath = tempWinningPath
+				// fmt.Printf(" bingo: %v\n", tg.WinningPath)
 				return true
 			}
 		}
@@ -142,9 +147,67 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 	// ... or, you know, fail to find a path through this square. If so, trim the
 	// last entry, which will not be part of the winning path
 	// fmt.Printf("pruning %v\n", tg.WinningPath[len(tg.WinningPath)-1:])
-	tempWinningPath = tempWinningPath[:len(tempWinningPath)-1]
+	tg.WinningPath = tg.WinningPath[:len(tg.WinningPath)-1]
 	// fmt.Printf(" after: %v\n", tempWinningPath)
 	// if tg.GameOver == false {
 	// }
 	return false
+}
+
+// DrawWinningPath is meant to show the path assembled by the road checks
+func (tg *TakGame) DrawWinningPath() {
+
+	boardSize := len(tg.GameBoard)
+	printablePath := make([][]string, boardSize)
+	for i := range printablePath {
+		printablePath[i] = make([]string, boardSize)
+	}
+
+	for _, v := range tg.WinningPath {
+		y, x, _ := tg.TranslateCoords(v)
+		printablePath[y][x] = "o"
+	}
+
+	fmt.Println(" " + strings.Repeat("- ", boardSize))
+	for y := 0; y < boardSize; y++ {
+		fmt.Print("|")
+		for x := 0; x < boardSize; x++ {
+			if printablePath[y][x] == "o" {
+				fmt.Print("o ")
+			} else {
+				fmt.Print(". ")
+			}
+		}
+		fmt.Print("|\n")
+	}
+	fmt.Println(" " + strings.Repeat("- ", boardSize))
+
+}
+
+func (tg *TakGame) DrawStackTops() {
+
+	boardSize := len(tg.GameBoard)
+	printablePath := make([][]string, boardSize)
+	for i := range printablePath {
+		printablePath[i] = make([]string, boardSize)
+	}
+
+	fmt.Println(" " + strings.Repeat("- ", boardSize))
+	for y := 0; y < boardSize; y++ {
+		fmt.Print("|")
+		for x := 0; x < boardSize; x++ {
+			if len(tg.GameBoard[y][x].Pieces) == 0 {
+				fmt.Print(". ")
+			} else {
+				if tg.GameBoard[y][x].Pieces[0].Color == Black {
+					fmt.Print("B ")
+				} else {
+					fmt.Print("W ")
+				}
+			}
+		}
+		fmt.Print("|\n")
+	}
+	fmt.Println(" " + strings.Repeat("- ", boardSize))
+
 }

@@ -311,7 +311,7 @@ func TestRoadWin(t *testing.T) {
 	//2 .....o..
 	//1 .....o..
 	// abcdefgh
-	whiteWin.GameBoard[0][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	whiteWin.GameBoard[0][2] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 	whiteWin.GameBoard[0][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 
 	whiteWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
@@ -341,7 +341,8 @@ func TestRoadWin(t *testing.T) {
 	isover := whiteWin.IsGameOver()
 	whowins, _ := whiteWin.WhoWins()
 	fmt.Printf("8x8? %v who wins? %v winningPath: %v\n", isover, whowins, whiteWin.WinningPath)
-
+	whiteWin.DrawWinningPath()
+	whiteWin.DrawStackTops()
 	blackWin := MakeGameBoard(3)
 	blackWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[1][0] = Stack{[]Piece{blackFlat}}
@@ -350,6 +351,8 @@ func TestRoadWin(t *testing.T) {
 	isover = blackWin.IsGameOver()
 	whowins, _ = blackWin.WhoWins()
 	fmt.Printf("3x3? %v who wins? %v winningPath: %v\n", isover, whowins, blackWin.WinningPath)
+	blackWin.DrawWinningPath()
+	blackWin.DrawStackTops()
 
 	notAWin := MakeGameBoard(4)
 	notAWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
@@ -387,16 +390,16 @@ func TestRoadWin(t *testing.T) {
 }
 
 func TestUnCoords(t *testing.T) {
-	whiteWin := MakeGameBoard(7)
+	whiteWin := MakeGameBoard(6)
 
 	testCoords := []struct {
 		y, x       int
 		coords     string
 		desiredErr error
 	}{
-		{0, 0, "a7", nil},
-		{2, 2, "c5", nil},
-		{3, 5, "f4", nil},
+		{0, 0, "a6", nil},
+		{2, 2, "c4", nil},
+		{3, 5, "f3", nil},
 		{8, 0, "", errors.New("y '8' is out of bounds")},
 	}
 
