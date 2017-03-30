@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -283,8 +284,8 @@ func TestPathSearch(t *testing.T) {
 	// a3
 	testGame.GameBoard[2][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
 
-	blackVictory := testGame.RoadWinCheck(Black)
-	whiteVictory := testGame.RoadWinCheck(White)
+	blackVictory := testGame.IsRoadWin(Black)
+	whiteVictory := testGame.IsRoadWin(White)
 
 	switch {
 	case blackVictory == false:
@@ -346,6 +347,11 @@ func TestRoadWin(t *testing.T) {
 	blackWin.GameBoard[1][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 	blackWin.GameBoard[2][0] = Stack{[]Piece{blackFlat}}
 
+	notAWin := MakeGameBoard(4)
+	notAWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
+	notAWin.GameBoard[1][0] = Stack{[]Piece{blackFlat}}
+	notAWin.GameBoard[1][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+
 	noWin := MakeGameBoard(4)
 
 	testCases := []struct {
@@ -356,10 +362,12 @@ func TestRoadWin(t *testing.T) {
 	}{
 		{whiteWin, true, "White makes a road win!", nil},
 		{blackWin, true, "Black makes a road win!", nil},
-		{noWin, false, "", errors.New("Game is not over, yet")},
+		{noWin, false, "", errors.New("game is not over, yet")},
+		{notAWin, false, "", errors.New("game is not over, yet")},
 	}
-	for _, c := range testCases {
+	for k, c := range testCases {
 		isOver := c.game.IsGameOver()
+		fmt.Printf("==> Testing Roadwin %v: WP = %v\n", k, c.game.WinningPath)
 		if isOver != c.isOver {
 			t.Errorf("Expected gameOver: %+v, got %+v", c.isOver, isOver)
 		}
@@ -384,6 +392,7 @@ func TestUnCoords(t *testing.T) {
 	}{
 		{0, 0, "a7", nil},
 		{2, 2, "c5", nil},
+		{3, 5, "f4", nil},
 		{8, 0, "", errors.New("y '8' is out of bounds")},
 	}
 

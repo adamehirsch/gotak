@@ -1,5 +1,7 @@
 package main
 
+import "fmt"
+
 // Coords are just an y, x pair
 type Coords struct {
 	y, x int
@@ -72,8 +74,9 @@ func (tg *TakGame) NearbyOccupiedCoords(y, x int) []Coords {
 	return coordsToCheck
 }
 
-// RoadWinCheck looks for a path across the board
-func (tg *TakGame) RoadWinCheck(color string) bool {
+// IsRoadWin looks for a path across the board
+func (tg *TakGame) IsRoadWin(color string) bool {
+	tg.WinningPath = nil
 	for j := 0; j < len(tg.GameBoard); j++ {
 		// check WestEast roads
 		if tg.OccupiedCoords(j, 0) {
@@ -92,12 +95,23 @@ func (tg *TakGame) RoadWinCheck(color string) bool {
 	return false
 }
 
+var tempWinningPath []string
+
 func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 
 	boardsize := len(tg.GameBoard)
+	humanCoords, _ := tg.UnTranslateCoords(s.y, s.x)
+	tempWinningPath = append(tempWinningPath, humanCoords)
+	fmt.Printf("before: %v\n", tg.WinningPath)
 
-	// let's optimistically believe that the square we're working on is part of the winning path, unless and until proved otherwise
-	tg.WinningPath = append(tg.WinningPath, Coords{y: s.y, x: s.x})
+	// if tg.GameOver == false {
+	// 	// only do this once; we sometimes re-run the RoadCheck
+	// 	// let's optimistically believe that the square we're working on is part of the winning path, unless and until proved otherwise
+	// 	if humanCoords, err := tg.UnTranslateCoords(s.y, s.x); err == nil {
+	// 		tg.WinningPath = append(tg.WinningPath, humanCoords)
+	// 		fmt.Printf("-> checking: %+v %+v %v\n", s.x, s.y, tg.WinningPath)
+	// 	}
+	// }
 
 	var thisPiecePosition int
 	if dir == NorthSouth {
@@ -122,12 +136,18 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 			nextSquare.parent = s
 			// let's get recursive all up in here. Keep drilling down until we get to the bottom of the board ...
 			if found := tg.roadCheck(nextSquare, dir, color); found {
+				fmt.Printf(" bingo: %v\n", tempWinningPath)
+				tg.WinningPath = tempWinningPath
 				return true
 			}
 		}
 	}
 	// ... or, you know, fail to find a path through this square. If so, trim the
 	// last entry, which will not be part of the winning path
-	tg.WinningPath = tg.WinningPath[:len(tg.WinningPath)-1]
+	// fmt.Printf("pruning %v\n", tg.WinningPath[len(tg.WinningPath)-1:])
+	tempWinningPath = tempWinningPath[:len(tempWinningPath)-1]
+	fmt.Printf(" after: %v\n", tempWinningPath)
+	// if tg.GameOver == false {
+	// }
 	return false
 }

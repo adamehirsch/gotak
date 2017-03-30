@@ -31,20 +31,30 @@ type Stack struct {
 	Pieces []Piece
 }
 
+// TakPlayer describes a human player
+type TakPlayer struct {
+	Name        string     `json:"name"`
+	PlayerID    uuid.UUID  `json:"playerID"`
+	PlayedGames []*TakGame `json:"playedGames"`
+}
+
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
 type TakGame struct {
-	GameID        uuid.UUID
-	GameBoard     [][]Stack
-	IsBlackTurn   bool
-	IsBlackWinner bool
-	IsWhiteWinner bool
-	DrawGame      bool
-	GameOver      bool
-	GameWinner    uuid.UUID
-	WinningPath   []Coords
-	WinTime       time.Time
-	BlackPlayer   uuid.UUID
-	WhitePlayer   uuid.UUID
+	GameID      uuid.UUID  `json:"gameID"`
+	GameBoard   [][]Stack  `json:"gameBoard"`
+	IsBlackTurn bool       `json:"isBlackTurn"`
+	BlackWinner bool       `json:"BlackWinner"`
+	WhiteWinner bool       `json:"WhiteWinner"`
+	RoadWin     bool       `json:"roadWin"`
+	FlatWin     bool       `json:"flatWin"`
+	DrawGame    bool       `json:"drawGame"`
+	GameOver    bool       `json:"gameOver"`
+	GameWinner  uuid.UUID  `json:"gameWinner"`
+	WinningPath []string   `json:"winningPath"`
+	StartTime   time.Time  `json:"startTime"`
+	WinTime     time.Time  `json:"winTime"`
+	BlackPlayer *TakPlayer `json:"blackPlayerID"`
+	WhitePlayer *TakPlayer `json:"whitePlayerID;"`
 }
 
 // PieceLimits is a map of gridsize to piece limits per player

@@ -37,7 +37,7 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(newGame); err != nil {
-			panic(err)
+			log.Println(err)
 		}
 	} else {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -55,7 +55,7 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			if err := json.NewEncoder(w).Encode(requestedGame); err != nil {
-				panic(err)
+				log.Println(err)
 			}
 
 		} else {
@@ -128,6 +128,6 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(requestedGame.GameBoard)
+	json.NewEncoder(w).Encode(requestedGame)
 	return nil
 }
