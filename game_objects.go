@@ -25,6 +25,13 @@ type Piece struct {
 	Orientation string `json:"orientation"`
 }
 
+var whiteFlat = Piece{"white", "flat"}
+var blackFlat = Piece{"black", "flat"}
+var whiteCap = Piece{"white", "capstone"}
+var blackCap = Piece{"black", "capstone"}
+var whiteWall = Piece{"white", "wall"}
+var blackWall = Piece{"black", "wall"}
+
 // Stack is just a slice of Pieces.
 type Stack struct {
 	// Note: the "top" of the stack is at [0]
@@ -50,7 +57,7 @@ type TakGame struct {
 	DrawGame    bool       `json:"drawGame"`
 	GameOver    bool       `json:"gameOver"`
 	GameWinner  uuid.UUID  `json:"gameWinner"`
-	WinningPath []string   `json:"winningPath"`
+	WinningPath []Coords   `json:"winningPath"`
 	StartTime   time.Time  `json:"startTime"`
 	WinTime     time.Time  `json:"winTime"`
 	BlackPlayer *TakPlayer `json:"blackPlayerID"`

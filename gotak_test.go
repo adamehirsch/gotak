@@ -2,19 +2,11 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 
 	uuid "github.com/satori/go.uuid"
 )
-
-var whiteFlat = Piece{"white", "flat"}
-var blackFlat = Piece{"black", "flat"}
-var whiteCap = Piece{"white", "capstone"}
-var blackCap = Piece{"black", "capstone"}
-var whiteWall = Piece{"white", "wall"}
-var blackWall = Piece{"black", "wall"}
 
 func TestBoardSizeLimits(t *testing.T) {
 	testBoard := MakeGameBoard(5)
@@ -301,16 +293,6 @@ func TestRoadWin(t *testing.T) {
 	whiteWin.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
 	gameIndex[whiteWin.GameID] = whiteWin
 
-	// Board looks like this; two possible white roadwins
-	//8 .o.o....
-	//7 oooo....
-	//6 o.o.....
-	//5 o.o.....
-	//4 oooooooo
-	//3 o....o..
-	//2 .....o..
-	//1 .....o..
-	// abcdefgh
 	whiteWin.GameBoard[0][2] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 	whiteWin.GameBoard[0][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 
@@ -327,37 +309,35 @@ func TestRoadWin(t *testing.T) {
 	whiteWin.GameBoard[4][4] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[4][5] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[4][6] = Stack{[]Piece{whiteFlat}}
-	// whiteWin.GameBoard[4][7] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][7] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[4][1] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[4][0] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[5][0] = Stack{[]Piece{whiteFlat}}
 
+	whiteWin.GameBoard[5][4] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[5][5] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[6][5] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[7][5] = Stack{[]Piece{whiteFlat}}
 
-	isover := whiteWin.IsGameOver()
-	whowins, _ := whiteWin.WhoWins()
-	fmt.Printf("8x8? %v who wins? %v winningPath: %v\n", isover, whowins, whiteWin.WinningPath)
-	whiteWin.DrawWinningPath()
-	whiteWin.DrawStackTops()
 	blackWin := MakeGameBoard(3)
 	blackWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[1][0] = Stack{[]Piece{blackFlat}}
-	blackWin.GameBoard[1][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-	blackWin.GameBoard[2][0] = Stack{[]Piece{blackFlat}}
-	isover = blackWin.IsGameOver()
-	whowins, _ = blackWin.WhoWins()
-	fmt.Printf("3x3? %v who wins? %v winningPath: %v\n", isover, whowins, blackWin.WinningPath)
-	blackWin.DrawWinningPath()
-	blackWin.DrawStackTops()
+	blackWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[1][2] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[2][1] = Stack{[]Piece{blackFlat}}
 
-	notAWin := MakeGameBoard(4)
-	notAWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
-	notAWin.GameBoard[1][0] = Stack{[]Piece{blackFlat}}
-	notAWin.GameBoard[1][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	notARoadWin := MakeGameBoard(3)
+	notARoadWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
+	notARoadWin.GameBoard[0][1] = Stack{[]Piece{whiteWall}}
+	notARoadWin.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
+	notARoadWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat}}
+	notARoadWin.GameBoard[2][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
+	notARoadWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
+	notARoadWin.GameBoard[2][1] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
+	notARoadWin.GameBoard[1][2] = Stack{[]Piece{blackCap}}
+	notARoadWin.GameBoard[2][2] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
 
 	noWin := MakeGameBoard(4)
 
@@ -369,16 +349,16 @@ func TestRoadWin(t *testing.T) {
 	}{
 		{whiteWin, true, "White makes a road win!", nil},
 		{blackWin, true, "Black makes a road win!", nil},
+		{notARoadWin, true, "White makes a Flat Win!", nil},
 		{noWin, false, "", errors.New("game is not over, yet")},
-		{notAWin, false, "", errors.New("game is not over, yet")},
 	}
 	for _, c := range testCases {
 		isOver := c.game.IsGameOver()
-		// fmt.Printf("==> Testing Roadwin %v: WP = %v\n", k, c.game.WinningPath)
 		if isOver != c.isOver {
 			t.Errorf("Expected gameOver: %+v, got %+v", c.isOver, isOver)
 		}
 		checkedWinner, checkErr := c.game.WhoWins()
+		c.game.DrawStackTops()
 		if checkedWinner != c.whoWon {
 			t.Errorf("Problem: wanted winner '%v', got winner '%v'.\n", c.whoWon, checkedWinner)
 		}

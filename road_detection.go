@@ -7,7 +7,8 @@ import (
 
 // Coords are just an y, x pair
 type Coords struct {
-	y, x int
+	Y int `json:"y"`
+	X int `json:"x"`
 }
 
 // Square tracks a connected line of pieces through a board.
@@ -77,20 +78,34 @@ func (tg *TakGame) NearbyOccupiedCoords(y, x int) []Coords {
 	return coordsToCheck
 }
 
-// IsRoadWin looks for a path across the board
+// IsRoadWin looks for a path across the board by the player of a given color.
 func (tg *TakGame) IsRoadWin(color string) bool {
-	tg.WinningPath = nil
+
 	for j := 0; j < len(tg.GameBoard); j++ {
-		// check WestEast roads
-		if tg.OccupiedCoords(j, 0) {
-			// Check for WestEast roads.
-			if foundAPath := tg.roadCheck(newSearchedSquare(j, 0), WestEast, color); foundAPath == true {
+		// now check for a NorthSouth road
+		if tg.OccupiedCoords(0, j) && tg.GameBoard[0][j].Pieces[0].Color == color {
+			if foundAPath := tg.roadCheck(newSearchedSquare(0, j), NorthSouth, color, []Coords{}); foundAPath == true {
+				tg.RoadWin = true
+				if color == Black {
+					tg.BlackWinner = true
+				}
+				if color == White {
+					tg.WhiteWinner = true
+				}
 				return true
 			}
 		}
-		// now check for a NorthSouth road
-		if tg.OccupiedCoords(0, j) {
-			if foundAPath := tg.roadCheck(newSearchedSquare(j, 0), NorthSouth, color); foundAPath == true {
+		// check WestEast roads
+		if tg.OccupiedCoords(j, 0) && tg.GameBoard[j][0].Pieces[0].Color == color {
+			// Check for WestEast roads.
+			if foundAPath := tg.roadCheck(newSearchedSquare(j, 0), WestEast, color, []Coords{}); foundAPath == true {
+				tg.RoadWin = true
+				if color == Black {
+					tg.BlackWinner = true
+				}
+				if color == White {
+					tg.WhiteWinner = true
+				}
 				return true
 			}
 		}
@@ -98,23 +113,11 @@ func (tg *TakGame) IsRoadWin(color string) bool {
 	return false
 }
 
-func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
-	// tempWinningPath := make([]string, 2*len(tg.GameBoard))
+func (tg *TakGame) roadCheck(s *Square, dir string, color string, pp []Coords) bool {
 
 	boardsize := len(tg.GameBoard)
-	humanCoords, _ := tg.UnTranslateCoords(s.y, s.x)
-	tg.WinningPath = append(tg.WinningPath, humanCoords)
-	// fmt.Printf("before: %v\n", tg.WinningPath)
-
-	// if tg.GameOver == false {
-	// 	// only do this once; we sometimes re-run the RoadCheck
-	// 	// let's optimistically believe that the square we're working on is part of the winning path, unless and until proved otherwise
-	// 	if humanCoords, err := tg.UnTranslateCoords(s.y, s.x); err == nil {
-	// 		tg.WinningPath = append(tg.WinningPath, humanCoords)
-	// 		fmt.Printf("-> checking: %+v %+v %v\n", s.x, s.y, tg.WinningPath)
-	// 	}
-	// }
-
+	// let's optimistically believe that this square we're checking will be part of the winningPath
+	pp = append(pp, Coords{X: s.x, Y: s.y})
 	var thisPiecePosition int
 	if dir == NorthSouth {
 		thisPiecePosition = s.y
@@ -123,9 +126,9 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 	}
 
 	if thisPiecePosition == (boardsize - 1) {
-		// the square being checked is on the rightmost or bottom row:
+		// the square being checked is on the rightmost and/or bottom row:
 		// declare success and shortcut the rest of the search.
-		// fmt.Printf("Success: current wp is %v\n\n", tg.WinningPath)
+		tg.WinningPath = pp
 		return true
 	}
 
@@ -134,56 +137,19 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string) bool {
 	for _, c := range coordsNearby {
 
 		// if there's a correctly colored piece on the board in an adjacent square that hasn't been seen...
-		if tg.OccupiedCoords(c.y, c.x) && tg.GameBoard[c.y][c.x].Pieces[0].Color == color && !s.squareSearched(c.y, c.x) {
-			nextSquare := newSearchedSquare(c.y, c.x)
+		if tg.OccupiedCoords(c.Y, c.X) && tg.GameBoard[c.Y][c.X].Pieces[0].Color == color && !s.squareSearched(c.Y, c.X) {
+			nextSquare := newSearchedSquare(c.Y, c.X)
 			nextSquare.parent = s
 			// let's get recursive all up in here. Keep drilling down until we get to the bottom of the board ...
-			if found := tg.roadCheck(nextSquare, dir, color); found {
-				// fmt.Printf(" bingo: %v\n", tg.WinningPath)
+			if found := tg.roadCheck(nextSquare, dir, color, pp); found {
 				return true
 			}
 		}
 	}
-	// ... or, you know, fail to find a path through this square. If so, trim the
-	// last entry, which will not be part of the winning path
-	// fmt.Printf("pruning %v\n", tg.WinningPath[len(tg.WinningPath)-1:])
-	tg.WinningPath = tg.WinningPath[:len(tg.WinningPath)-1]
-	// fmt.Printf(" after: %v\n", tempWinningPath)
-	// if tg.GameOver == false {
-	// }
 	return false
 }
 
-// DrawWinningPath is meant to show the path assembled by the road checks
-func (tg *TakGame) DrawWinningPath() {
-
-	boardSize := len(tg.GameBoard)
-	printablePath := make([][]string, boardSize)
-	for i := range printablePath {
-		printablePath[i] = make([]string, boardSize)
-	}
-
-	for _, v := range tg.WinningPath {
-		y, x, _ := tg.TranslateCoords(v)
-		printablePath[y][x] = "o"
-	}
-
-	fmt.Println(" " + strings.Repeat("- ", boardSize))
-	for y := 0; y < boardSize; y++ {
-		fmt.Print("|")
-		for x := 0; x < boardSize; x++ {
-			if printablePath[y][x] == "o" {
-				fmt.Print("o ")
-			} else {
-				fmt.Print(". ")
-			}
-		}
-		fmt.Print("|\n")
-	}
-	fmt.Println(" " + strings.Repeat("- ", boardSize))
-
-}
-
+// DrawStackTops draws a board with the winning path, if any, highlighted
 func (tg *TakGame) DrawStackTops() {
 
 	boardSize := len(tg.GameBoard)
@@ -192,22 +158,32 @@ func (tg *TakGame) DrawStackTops() {
 		printablePath[i] = make([]string, boardSize)
 	}
 
-	fmt.Println(" " + strings.Repeat("- ", boardSize))
+	for _, v := range tg.WinningPath {
+		printablePath[v.Y][v.X] = "o"
+	}
+
+	fmt.Println(" " + strings.Repeat("---", boardSize))
 	for y := 0; y < boardSize; y++ {
 		fmt.Print("|")
 		for x := 0; x < boardSize; x++ {
 			if len(tg.GameBoard[y][x].Pieces) == 0 {
-				fmt.Print(". ")
+				fmt.Print(" . ")
 			} else {
-				if tg.GameBoard[y][x].Pieces[0].Color == Black {
-					fmt.Print("B ")
-				} else {
-					fmt.Print("W ")
+				highlightOpen := " "
+				highlightClose := " "
+				if printablePath[y][x] == "o" {
+					highlightOpen = "("
+					highlightClose = ")"
 				}
+				stackTop := "B"
+				if tg.GameBoard[y][x].Pieces[0].Color == White {
+					stackTop = "W"
+				}
+				fmt.Printf("%s%s%s", highlightOpen, stackTop, highlightClose)
 			}
 		}
 		fmt.Print("|\n")
 	}
-	fmt.Println(" " + strings.Repeat("- ", boardSize))
+	fmt.Println(" " + strings.Repeat("---", boardSize))
 
 }

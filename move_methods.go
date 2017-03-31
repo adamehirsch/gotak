@@ -364,9 +364,13 @@ func (tg *TakGame) IsGameOver() bool {
 	boardSize := len(tg.GameBoard)
 	_, totalPlacedPieces := tg.CountAllPlacedPieces()
 	if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
+		fmt.Print("1IFW\n")
+
 		tg.GameOver = true
 		return true
 	} else if totalPlacedPieces[White] >= PieceLimits[boardSize] {
+		fmt.Print("2IFW\n")
+
 		tg.GameOver = true
 		return true
 	}
@@ -378,7 +382,6 @@ func (tg *TakGame) IsGameOver() bool {
 
 	if tg.IsRoadWin(Black) || tg.IsRoadWin(White) {
 		tg.GameOver = true
-		// fmt.Printf("-> winning path: %v\n", tg.WinningPath)
 		return true
 	}
 
@@ -443,11 +446,12 @@ func (tg *TakGame) WhoWins() (string, error) {
 		return "", errors.New("game is not over, yet")
 	}
 	stackTops, _ := tg.CountAllPlacedPieces()
+
 	switch {
 	case tg.IsBlackTurn && tg.IsRoadWin(Black):
 		tg.BlackWinner = true
 		return "Black makes a road win!", nil
-	case tg.IsBlackTurn == false && tg.IsRoadWin(White):
+	case tg.IsBlackTurn == false && tg.IsRoadWin(White): // this is where to start
 		tg.WhiteWinner = true
 		return "White makes a road win!", nil
 	case tg.IsRoadWin(Black):
@@ -456,13 +460,13 @@ func (tg *TakGame) WhoWins() (string, error) {
 	case tg.IsRoadWin(White):
 		tg.WhiteWinner = true
 		return "White makes a road win!", nil
-	case stackTops[Black] > stackTops[White]:
+	case tg.IsFlatWin() && stackTops[Black] > stackTops[White]:
 		tg.BlackWinner = true
 		return "Black makes a Flat Win!", nil
-	case stackTops[White] > stackTops[Black]:
+	case tg.IsFlatWin() && stackTops[White] > stackTops[Black]:
 		tg.WhiteWinner = true
 		return "White makes a Flat Win!", nil
-	case stackTops[White] == stackTops[Black]:
+	case tg.IsFlatWin() && stackTops[White] == stackTops[Black]:
 		tg.DrawGame = true
 		return "Game ends in a draw!", nil
 	}
