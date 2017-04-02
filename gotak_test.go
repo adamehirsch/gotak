@@ -250,42 +250,18 @@ func TestCoordsAround(t *testing.T) {
 	}{
 		{"b2", []Coords{Coords{3, 2}}},
 		{"b5", nil},
-		{"c2", []Coords{Coords{3, 1}, Coords{2, 2}}},
+		{"c2", []Coords{Coords{2, 2}, Coords{3, 1}}},
 		{"a1", nil},
-		{"b1", []Coords{Coords{4, 0}, Coords{3, 1}}},
+		{"b1", []Coords{Coords{3, 1}, Coords{4, 0}}},
 	}
 
 	for _, c := range cases {
 		y, x, _ := testGame.TranslateCoords(c.coords)
-		coordsAround := testGame.NearbyOccupiedCoords(y, x)
+		coordsAround := testGame.NearbyOccupiedCoords(y, x, NorthSouth)
 		if reflect.DeepEqual(coordsAround, c.coordsAround) == false {
 			t.Errorf("%v Wanted coords %v got CoordsAround %v\n", c.coords, c.coordsAround, coordsAround)
 		}
 	}
-}
-
-func TestPathSearch(t *testing.T) {
-	testGame := MakeGameBoard(3)
-
-	// c2
-	testGame.GameBoard[0][1] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
-	// b2
-	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-	// b3
-	testGame.GameBoard[1][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	// a3
-	testGame.GameBoard[2][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
-
-	blackVictory := testGame.IsRoadWin(Black)
-	whiteVictory := testGame.IsRoadWin(White)
-
-	switch {
-	case blackVictory == false:
-		t.Errorf("Failed to verify Black RoadWin: %v\n", blackVictory)
-	case whiteVictory == true:
-		t.Errorf("Got erroneous White RoadWin: %v\n", whiteVictory)
-	}
-
 }
 
 func TestRoadWin(t *testing.T) {
@@ -392,4 +368,29 @@ func TestUnCoords(t *testing.T) {
 			t.Errorf("%v, %v: wanted '%v', got '%v'", c.y, c.x, c.desiredErr, err)
 		}
 	}
+}
+
+func TestPathSearch(t *testing.T) {
+	testGame := MakeGameBoard(3)
+
+	// c2
+	testGame.GameBoard[0][1] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
+	// b2
+	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	// b3
+	testGame.GameBoard[1][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	// a3
+	testGame.GameBoard[2][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
+
+	blackVictory := testGame.IsRoadWin(Black)
+	whiteVictory := testGame.IsRoadWin(White)
+
+	testGame.DrawStackTops()
+	switch {
+	case blackVictory == false:
+		t.Errorf("Failed to verify Black RoadWin: %v\n", blackVictory)
+	case whiteVictory == true:
+		t.Errorf("Got erroneous White RoadWin: %v\n", whiteVictory)
+	}
+
 }

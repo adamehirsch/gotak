@@ -61,7 +61,8 @@ type TakGame struct {
 	StartTime   time.Time  `json:"startTime"`
 	WinTime     time.Time  `json:"winTime"`
 	BlackPlayer *TakPlayer `json:"blackPlayerID"`
-	WhitePlayer *TakPlayer `json:"whitePlayerID;"`
+	WhitePlayer *TakPlayer `json:"whitePlayerID"`
+	Size        int        `json:"size"`
 }
 
 // PieceLimits is a map of gridsize to piece limits per player
@@ -93,7 +94,7 @@ func MakeGameBoard(size int) *TakGame {
 	}
 
 	newTakGame := TakGame{GameID: newUUID, GameBoard: newGameBoard}
-
+	newTakGame.Size = size
 	gameIndex[newUUID] = &newTakGame
 	return &newTakGame
 }

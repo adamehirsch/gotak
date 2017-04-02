@@ -43,8 +43,8 @@ func (s *Square) squareSearched(y, x int) bool {
 	return false
 }
 
-// OccupiedCoords returns a simple boolean if ... wait for it ... a square is empty
-func (tg *TakGame) OccupiedCoords(y, x int) bool {
+// CoordsAreOccupied returns a simple boolean if ... wait for it ... a square is empty
+func (tg *TakGame) CoordsAreOccupied(y, x int) bool {
 	grid := tg.GameBoard
 	foundStack := grid[y][x]
 	// far easier to compare length of a slice than to get fancy about comparing empty structs.
@@ -56,34 +56,40 @@ func (tg *TakGame) OccupiedCoords(y, x int) bool {
 
 // NearbyOccupiedCoords returns a series of occpupied y/x coordinates for
 // orthogonal positions around a given start point that don't exceed the board size.
-func (tg *TakGame) NearbyOccupiedCoords(y, x int) []Coords {
-	boardSize := len(tg.GameBoard)
+func (tg *TakGame) NearbyOccupiedCoords(y, x int, direction string) []Coords {
 	var coordsToCheck []Coords
 
-	if (x-1) >= 0 && tg.OccupiedCoords(y, x-1) {
-		coordsToCheck = append(coordsToCheck, Coords{y, x - 1})
+	if (direction == WestEast && x == 0) == false {
+		if (y-1) >= 0 && tg.CoordsAreOccupied(y-1, x) {
+			coordsToCheck = append(coordsToCheck, Coords{y - 1, x})
+		}
+
+		if (y+1) <= (tg.Size-1) && tg.CoordsAreOccupied(y+1, x) {
+			coordsToCheck = append(coordsToCheck, Coords{y + 1, x})
+		}
 	}
 
-	if (x+1) <= (boardSize-1) && tg.OccupiedCoords(y, x+1) {
-		coordsToCheck = append(coordsToCheck, Coords{y, x + 1})
-	}
+	if (direction == NorthSouth && y == 0) == false {
 
-	if (y-1) >= 0 && tg.OccupiedCoords(y-1, x) {
-		coordsToCheck = append(coordsToCheck, Coords{y - 1, x})
-	}
+		if (x-1) >= 0 && tg.CoordsAreOccupied(y, x-1) {
+			coordsToCheck = append(coordsToCheck, Coords{y, x - 1})
+		}
 
-	if (y+1) <= (boardSize-1) && tg.OccupiedCoords(y+1, x) {
-		coordsToCheck = append(coordsToCheck, Coords{y + 1, x})
+		if (x+1) <= (tg.Size-1) && tg.CoordsAreOccupied(y, x+1) {
+			coordsToCheck = append(coordsToCheck, Coords{y, x + 1})
+		}
 	}
+	// fmt.Printf("%v: Around y%v x%v: %v\n", direction, y, x, coordsToCheck)
 	return coordsToCheck
 }
 
 // IsRoadWin looks for a path across the board by the player of a given color.
 func (tg *TakGame) IsRoadWin(color string) bool {
 
-	for j := 0; j < len(tg.GameBoard); j++ {
-		// now check for a NorthSouth road
-		if tg.OccupiedCoords(0, j) && tg.GameBoard[0][j].Pieces[0].Color == color {
+	for j := 0; j < tg.Size; j++ {
+		// fmt.Printf("NS j%v\n", j)
+		// first check for a NorthSouth road
+		if tg.CoordsAreOccupied(0, j) && tg.GameBoard[0][j].Pieces[0].Color == color {
 			if foundAPath := tg.roadCheck(newSearchedSquare(0, j), NorthSouth, color, []Coords{}); foundAPath == true {
 				tg.RoadWin = true
 				if color == Black {
@@ -95,8 +101,10 @@ func (tg *TakGame) IsRoadWin(color string) bool {
 				return true
 			}
 		}
+		// fmt.Printf("WE j%v\n", j)
+
 		// check WestEast roads
-		if tg.OccupiedCoords(j, 0) && tg.GameBoard[j][0].Pieces[0].Color == color {
+		if tg.CoordsAreOccupied(j, 0) && tg.GameBoard[j][0].Pieces[0].Color == color {
 			// Check for WestEast roads.
 			if foundAPath := tg.roadCheck(newSearchedSquare(j, 0), WestEast, color, []Coords{}); foundAPath == true {
 				tg.RoadWin = true
@@ -133,11 +141,11 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string, pp []Coords) b
 	}
 
 	// get a list of adjacent orthogonal spaces (on the board)
-	coordsNearby := tg.NearbyOccupiedCoords(s.y, s.x)
+	coordsNearby := tg.NearbyOccupiedCoords(s.y, s.x, dir)
 	for _, c := range coordsNearby {
 
 		// if there's a correctly colored piece on the board in an adjacent square that hasn't been seen...
-		if tg.OccupiedCoords(c.Y, c.X) && tg.GameBoard[c.Y][c.X].Pieces[0].Color == color && !s.squareSearched(c.Y, c.X) {
+		if tg.CoordsAreOccupied(c.Y, c.X) && tg.GameBoard[c.Y][c.X].Pieces[0].Color == color && !s.squareSearched(c.Y, c.X) {
 			nextSquare := newSearchedSquare(c.Y, c.X)
 			nextSquare.parent = s
 			// let's get recursive all up in here. Keep drilling down until we get to the bottom of the board ...
