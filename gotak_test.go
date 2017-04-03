@@ -250,9 +250,9 @@ func TestCoordsAround(t *testing.T) {
 	}{
 		{"b2", []Coords{Coords{3, 2}}},
 		{"b5", nil},
-		{"c2", []Coords{Coords{2, 2}, Coords{3, 1}}},
+		{"c2", []Coords{Coords{3, 1}, Coords{2, 2}}},
 		{"a1", nil},
-		{"b1", []Coords{Coords{3, 1}, Coords{4, 0}}},
+		{"b1", []Coords{Coords{4, 0}, Coords{3, 1}}},
 	}
 
 	for _, c := range cases {
@@ -262,87 +262,6 @@ func TestCoordsAround(t *testing.T) {
 			t.Errorf("%v Wanted coords %v got CoordsAround %v\n", c.coords, c.coordsAround, coordsAround)
 		}
 	}
-}
-
-func TestRoadWin(t *testing.T) {
-	whiteWin := MakeGameBoard(8)
-	whiteWin.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
-	gameIndex[whiteWin.GameID] = whiteWin
-
-	whiteWin.GameBoard[0][2] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-	whiteWin.GameBoard[0][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-
-	whiteWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	whiteWin.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-	whiteWin.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	whiteWin.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-
-	whiteWin.GameBoard[2][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	whiteWin.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-
-	whiteWin.GameBoard[3][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	whiteWin.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	whiteWin.GameBoard[4][4] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][5] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][6] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][7] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][1] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][0] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[5][0] = Stack{[]Piece{whiteFlat}}
-
-	whiteWin.GameBoard[5][4] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[5][5] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[6][5] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[7][5] = Stack{[]Piece{whiteFlat}}
-
-	blackWin := MakeGameBoard(3)
-	blackWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
-	blackWin.GameBoard[1][0] = Stack{[]Piece{blackFlat}}
-	blackWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
-	blackWin.GameBoard[1][2] = Stack{[]Piece{blackFlat}}
-	blackWin.GameBoard[2][1] = Stack{[]Piece{blackFlat}}
-
-	notARoadWin := MakeGameBoard(3)
-	notARoadWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
-	notARoadWin.GameBoard[0][1] = Stack{[]Piece{whiteWall}}
-	notARoadWin.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
-	notARoadWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat}}
-	notARoadWin.GameBoard[2][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
-	notARoadWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
-	notARoadWin.GameBoard[2][1] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
-	notARoadWin.GameBoard[1][2] = Stack{[]Piece{blackCap}}
-	notARoadWin.GameBoard[2][2] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
-
-	noWin := MakeGameBoard(4)
-
-	testCases := []struct {
-		game     *TakGame
-		isOver   bool
-		whoWon   string
-		checkErr error
-	}{
-		{whiteWin, true, "White makes a road win!", nil},
-		{blackWin, true, "Black makes a road win!", nil},
-		{notARoadWin, true, "White makes a Flat Win!", nil},
-		{noWin, false, "", errors.New("game is not over, yet")},
-	}
-	for _, c := range testCases {
-		isOver := c.game.IsGameOver()
-		if isOver != c.isOver {
-			t.Errorf("Expected gameOver: %+v, got %+v", c.isOver, isOver)
-		}
-		checkedWinner, checkErr := c.game.WhoWins()
-		c.game.DrawStackTops()
-		if checkedWinner != c.whoWon {
-			t.Errorf("Problem: wanted winner '%v', got winner '%v'.\n", c.whoWon, checkedWinner)
-		}
-		if reflect.DeepEqual(checkErr, c.checkErr) != true {
-			t.Errorf("Problem: wanted error '%v', got '%v'\n", c.checkErr, checkErr)
-		}
-	}
-
 }
 
 func TestUnCoords(t *testing.T) {
@@ -385,12 +304,189 @@ func TestPathSearch(t *testing.T) {
 	blackVictory := testGame.IsRoadWin(Black)
 	whiteVictory := testGame.IsRoadWin(White)
 
-	testGame.DrawStackTops()
+	// testGame.DrawStackTops()
 	switch {
 	case blackVictory == false:
 		t.Errorf("Failed to verify Black RoadWin: %v\n", blackVictory)
 	case whiteVictory == true:
 		t.Errorf("Got erroneous White RoadWin: %v\n", whiteVictory)
+	}
+
+}
+
+func TestRoadWin(t *testing.T) {
+	whiteWin := MakeGameBoard(8)
+	whiteWin.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
+	gameIndex[whiteWin.GameID] = whiteWin
+
+	whiteWin.GameBoard[0][2] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	whiteWin.GameBoard[0][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+
+	whiteWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	whiteWin.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+
+	whiteWin.GameBoard[2][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+
+	whiteWin.GameBoard[3][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[3][4] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][4] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][5] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[3][5] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[3][6] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[3][7] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][1] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[4][0] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[5][0] = Stack{[]Piece{whiteFlat}}
+
+	whiteWin.GameBoard[5][4] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[5][5] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[6][5] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[7][5] = Stack{[]Piece{whiteFlat}}
+
+	blackWin := MakeGameBoard(3)
+	blackWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[1][0] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[1][2] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[2][1] = Stack{[]Piece{blackFlat}}
+
+	notARoadWin := MakeGameBoard(3)
+	notARoadWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
+	notARoadWin.GameBoard[0][1] = Stack{[]Piece{whiteWall}}
+	notARoadWin.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
+	notARoadWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat}}
+	notARoadWin.GameBoard[2][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
+	notARoadWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
+	notARoadWin.GameBoard[2][1] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
+	notARoadWin.GameBoard[1][2] = Stack{[]Piece{blackCap}}
+	notARoadWin.GameBoard[2][2] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
+
+	noWin := MakeGameBoard(4)
+
+	revWin := MakeGameBoard(5)
+	revWin.GameBoard[0][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[1][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[2][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[2][2] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[2][1] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[3][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[3][1] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[4][1] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[4][3] = Stack{[]Piece{blackFlat}}
+
+	revWin.GameBoard[2][4] = Stack{[]Piece{whiteFlat}}
+
+	testCases := []struct {
+		game     *TakGame
+		isOver   bool
+		whoWon   string
+		checkErr error
+	}{
+		{whiteWin, true, "White makes a road win!", nil},
+		{blackWin, true, "Black makes a road win!", nil},
+		{notARoadWin, true, "White makes a Flat Win!", nil},
+		{noWin, false, "", errors.New("game is not over, yet")},
+		{revWin, true, "Black makes a road win!", nil},
+	}
+	for _, c := range testCases {
+		isOver := c.game.IsGameOver()
+		if isOver != c.isOver {
+			t.Errorf("Expected gameOver: %+v, got %+v", c.isOver, isOver)
+		}
+		checkedWinner, checkErr := c.game.WhoWins()
+		// c.game.DrawStackTops()
+		if checkedWinner != c.whoWon {
+			t.Errorf("Problem: wanted winner '%v', got winner '%v'.\n", c.whoWon, checkedWinner)
+		}
+		if reflect.DeepEqual(checkErr, c.checkErr) != true {
+			t.Errorf("Problem: wanted error '%v', got '%v'\n", c.checkErr, checkErr)
+		}
+	}
+
+}
+
+func TestGameEnd(t *testing.T) {
+	testOne := MakeGameBoard(4)
+	testOne.GameBoard[0][3] = Stack{[]Piece{whiteFlat}}
+	testOne.GameBoard[1][3] = Stack{[]Piece{whiteFlat}}
+	testOne.GameBoard[1][2] = Stack{[]Piece{whiteFlat}}
+	testOne.GameBoard[2][2] = Stack{[]Piece{whiteFlat}}
+
+	testTwo := MakeGameBoard(4)
+	testTwo.GameBoard[0][0] = Stack{[]Piece{whiteFlat}}
+	testTwo.GameBoard[0][1] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
+	testTwo.GameBoard[0][3] = Stack{[]Piece{blackWall}}
+
+	testTwo.GameBoard[1][0] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[1][1] = Stack{[]Piece{whiteFlat}}
+	testTwo.GameBoard[1][2] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[1][3] = Stack{[]Piece{whiteFlat}}
+
+	testTwo.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
+	testTwo.GameBoard[2][1] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[2][2] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[2][3] = Stack{[]Piece{whiteFlat}}
+
+	testTwo.GameBoard[3][0] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[3][3] = Stack{[]Piece{whiteFlat}}
+
+	testThree := MakeGameBoard(4)
+	testThree.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
+	testThree.GameBoard[0][1] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
+	testThree.GameBoard[0][3] = Stack{[]Piece{blackWall}}
+
+	testThree.GameBoard[1][0] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[1][1] = Stack{[]Piece{whiteFlat}}
+	testThree.GameBoard[1][2] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[1][3] = Stack{[]Piece{whiteWall}}
+
+	testThree.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
+	testThree.GameBoard[2][1] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[2][2] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[2][3] = Stack{[]Piece{whiteFlat}}
+
+	testThree.GameBoard[3][0] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[3][3] = Stack{[]Piece{whiteFlat}}
+
+	testCases := []struct {
+		game           *TakGame
+		isOverPreMove  bool
+		whoWon         string
+		isOverPostMove bool
+		checkErr       error
+	}{
+		{testOne, false, "White makes a road win!", true, nil},
+		{testTwo, false, "Game ends in a draw!", true, nil},
+		{testThree, false, "Black makes a Flat Win!", true, nil},
+	}
+	for _, c := range testCases {
+		isOverPreMove := c.game.IsGameOver()
+		if isOverPreMove != c.isOverPreMove {
+			t.Errorf("Premove: Expected gameOver: %+v, got %+v", c.isOverPreMove, isOverPreMove)
+		}
+		c.game.GameBoard[3][2] = Stack{[]Piece{whiteFlat}}
+		c.game.GameBoard[3][1] = Stack{[]Piece{blackFlat}}
+		isOverPostMove := c.game.IsGameOver()
+		if isOverPostMove != c.isOverPostMove {
+			t.Errorf("Postmove: Expected gameOver: %+v, got %+v", c.isOverPostMove, isOverPostMove)
+		}
+		checkedWinner, checkErr := c.game.WhoWins()
+		// c.game.DrawStackTops()
+		if checkedWinner != c.whoWon {
+			t.Errorf("Problem: wanted winner '%v', got winner '%v'.\n", c.whoWon, checkedWinner)
+		}
+		if reflect.DeepEqual(checkErr, c.checkErr) != true {
+			t.Errorf("Problem: wanted error '%v', got '%v'\n", c.checkErr, checkErr)
+		}
 	}
 
 }

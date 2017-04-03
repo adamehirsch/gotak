@@ -59,17 +59,9 @@ func (tg *TakGame) CoordsAreOccupied(y, x int) bool {
 func (tg *TakGame) NearbyOccupiedCoords(y, x int, direction string) []Coords {
 	var coordsToCheck []Coords
 
-	if (direction == WestEast && x == 0) == false {
-		if (y-1) >= 0 && tg.CoordsAreOccupied(y-1, x) {
-			coordsToCheck = append(coordsToCheck, Coords{y - 1, x})
-		}
-
-		if (y+1) <= (tg.Size-1) && tg.CoordsAreOccupied(y+1, x) {
-			coordsToCheck = append(coordsToCheck, Coords{y + 1, x})
-		}
-	}
-
-	if (direction == NorthSouth && y == 0) == false {
+	// for the first part of a NS road, make the first move vertically, not horizontally
+	// i.e. look at adjacent horizontal squares only on a WE seek or a NS seek that's left the first row
+	if direction == WestEast || y != 0 {
 
 		if (x-1) >= 0 && tg.CoordsAreOccupied(y, x-1) {
 			coordsToCheck = append(coordsToCheck, Coords{y, x - 1})
@@ -79,6 +71,18 @@ func (tg *TakGame) NearbyOccupiedCoords(y, x int, direction string) []Coords {
 			coordsToCheck = append(coordsToCheck, Coords{y, x + 1})
 		}
 	}
+
+	// for the first part of a WE road, make the first move horizontally, not vertically
+	if direction == NorthSouth || x != 0 {
+		if (y-1) >= 0 && tg.CoordsAreOccupied(y-1, x) {
+			coordsToCheck = append(coordsToCheck, Coords{y - 1, x})
+		}
+
+		if (y+1) <= (tg.Size-1) && tg.CoordsAreOccupied(y+1, x) {
+			coordsToCheck = append(coordsToCheck, Coords{y + 1, x})
+		}
+	}
+
 	// fmt.Printf("%v: Around y%v x%v: %v\n", direction, y, x, coordsToCheck)
 	return coordsToCheck
 }
@@ -87,23 +91,10 @@ func (tg *TakGame) NearbyOccupiedCoords(y, x int, direction string) []Coords {
 func (tg *TakGame) IsRoadWin(color string) bool {
 
 	for j := 0; j < tg.Size; j++ {
-		// fmt.Printf("NS j%v\n", j)
-		// first check for a NorthSouth road
-		if tg.CoordsAreOccupied(0, j) && tg.GameBoard[0][j].Pieces[0].Color == color {
-			if foundAPath := tg.roadCheck(newSearchedSquare(0, j), NorthSouth, color, []Coords{}); foundAPath == true {
-				tg.RoadWin = true
-				if color == Black {
-					tg.BlackWinner = true
-				}
-				if color == White {
-					tg.WhiteWinner = true
-				}
-				return true
-			}
-		}
-		// fmt.Printf("WE j%v\n", j)
 
 		// check WestEast roads
+		// fmt.Printf("WE %v j%v\n", color, j)
+
 		if tg.CoordsAreOccupied(j, 0) && tg.GameBoard[j][0].Pieces[0].Color == color {
 			// Check for WestEast roads.
 			if foundAPath := tg.roadCheck(newSearchedSquare(j, 0), WestEast, color, []Coords{}); foundAPath == true {
@@ -117,6 +108,22 @@ func (tg *TakGame) IsRoadWin(color string) bool {
 				return true
 			}
 		}
+		// fmt.Printf("NS %v j%v\n", color, j)
+
+		// check NorthSouth roads
+		if tg.CoordsAreOccupied(0, j) && tg.GameBoard[0][j].Pieces[0].Color == color {
+			if foundAPath := tg.roadCheck(newSearchedSquare(0, j), NorthSouth, color, []Coords{}); foundAPath == true {
+				tg.RoadWin = true
+				if color == Black {
+					tg.BlackWinner = true
+				}
+				if color == White {
+					tg.WhiteWinner = true
+				}
+				return true
+			}
+		}
+
 	}
 	return false
 }
