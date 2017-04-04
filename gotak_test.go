@@ -10,24 +10,28 @@ import (
 
 func TestBoardSizeLimits(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	testBoard.GameBoard[4][0] = Stack{[]Piece{whiteWall, blackFlat}}
-	testBoard.GameBoard[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
-	testBoard.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
+	// a5
+	testBoard.GameBoard[0][4] = Stack{[]Piece{whiteWall, blackFlat}}
+	// c1
+	testBoard.GameBoard[2][0] = Stack{[]Piece{whiteFlat, whiteFlat}}
+	// d2
+	testBoard.GameBoard[3][1] = Stack{[]Piece{blackWall, whiteFlat}}
 
-	// case-driven testing: The Bomb
 	cases := []struct {
 		coords  string
 		stack   Stack
 		problem error
 	}{
-		{"a1", Stack{[]Piece{whiteWall, blackFlat}}, nil},
-		{"d4", Stack{[]Piece{blackWall, whiteFlat}}, nil},
+		{"a5", Stack{[]Piece{whiteWall, blackFlat}}, nil},
+		{"d2", Stack{[]Piece{blackWall, whiteFlat}}, nil},
 		{"b2", Stack{}, nil},
 		{"f1", Stack{}, errors.New("coordinates 'f1' larger than board size: 5")},
 	}
 
 	for _, c := range cases {
 		testStack, err := testBoard.SquareContents(c.coords)
+		// testBoard.DrawStackTops()
+
 		if reflect.DeepEqual(testStack, c.stack) == false {
 			t.Errorf("Returned stack from coords %v was %v: wanted %v\n", c.coords, testStack, c.stack)
 		}
@@ -38,13 +42,14 @@ func TestBoardSizeLimits(t *testing.T) {
 	}
 }
 
-// verify that
 func TestBoardSquareEmpty(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-
-	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteWall, blackFlat}}
-	testBoard.GameBoard[0][2] = Stack{[]Piece{whiteFlat, whiteFlat}}
-	testBoard.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat}}
+	// b5
+	testBoard.GameBoard[1][4] = Stack{[]Piece{whiteWall, blackFlat}}
+	// c1
+	testBoard.GameBoard[2][0] = Stack{[]Piece{whiteFlat, whiteFlat}}
+	// d2
+	testBoard.GameBoard[3][1] = Stack{[]Piece{blackWall, whiteFlat}}
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -52,7 +57,7 @@ func TestBoardSquareEmpty(t *testing.T) {
 		Empty   bool
 		Problem error
 	}{
-		{"b1", false, nil},
+		{"b5", false, nil},
 		{"a5", true, nil},
 		{"b2", true, nil},
 		{"f1", false, errors.New("Problem checking coordinates 'f1': coordinates 'f1' larger than board size: 5")},
@@ -73,17 +78,19 @@ func TestBoardSquareEmpty(t *testing.T) {
 
 func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	testBoard := MakeGameBoard(5)
-	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	// b5
+	testBoard.GameBoard[1][4] = Stack{[]Piece{whiteFlat, blackFlat}}
+	// a1
 	testBoard.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat}}
-	testBoard.GameBoard[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
+	// d2
+	testBoard.GameBoard[3][1] = Stack{[]Piece{whiteCap, blackFlat}}
 
-	// case-driven testing: The Bomb
 	cases := []struct {
 		placement Placement
 		Problem   error
 	}{
-		{Placement{Coords: "b1", Piece: whiteFlat}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
-		{Placement{Coords: "a5", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square a5")},
+		{Placement{Coords: "b5", Piece: whiteFlat}, errors.New("bad placement request: Cannot place piece on occupied square b5")},
+		{Placement{Coords: "a1", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square a1")},
 		{Placement{Coords: "b3", Piece: whiteWall}, nil},
 		{Placement{Coords: "h1", Piece: blackFlat}, errors.New("bad placement request: h1: coordinates 'h1' larger than board size: 5")},
 	}
@@ -106,9 +113,12 @@ func TestTurnTaking(t *testing.T) {
 	testBoard := MakeGameBoard(5)
 	bogusFlat := Piece{"bogus", "flatworm"}
 
-	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	// b5
+	testBoard.GameBoard[1][4] = Stack{[]Piece{whiteFlat, blackFlat}}
+	// a1
 	testBoard.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteCap}}
-	testBoard.GameBoard[1][3] = Stack{[]Piece{whiteCap, blackFlat}}
+	// d2
+	testBoard.GameBoard[3][1] = Stack{[]Piece{whiteCap, blackFlat}}
 	testBoard.IsBlackTurn = true
 
 	// case-driven testing: The Bomb
@@ -116,8 +126,8 @@ func TestTurnTaking(t *testing.T) {
 		placement Placement
 		Problem   error
 	}{
-		{Placement{Coords: "b1", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square b1")},
-		{Placement{Coords: "a5", Piece: whiteCap}, errors.New("bad placement request: Cannot place piece on occupied square a5")},
+		{Placement{Coords: "b5", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square b5")},
+		{Placement{Coords: "a1", Piece: whiteCap}, errors.New("bad placement request: Cannot place piece on occupied square a1")},
 		{Placement{Coords: "b2", Piece: whiteFlat}, errors.New("bad placement request: Cannot place white piece on black turn")},
 		{Placement{Coords: "a4", Piece: blackFlat}, errors.New("bad placement request: Cannot place black piece on white turn")},
 		{Placement{Coords: "b3", Piece: bogusFlat}, errors.New("bad placement request: Invalid piece color 'bogus'")},
@@ -143,13 +153,13 @@ func TestEmptySquareDetection(t *testing.T) {
 	testGame := MakeGameBoard(5)
 
 	// b2
-	testGame.GameBoard[3][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	testGame.GameBoard[1][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 	// c2
-	testGame.GameBoard[3][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-	// a1
-	testGame.GameBoard[4][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.GameBoard[2][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	// a5
+	testGame.GameBoard[0][4] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	// d4
-	testGame.GameBoard[1][3] = Stack{[]Piece{blackCap, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	testGame.GameBoard[3][1] = Stack{[]Piece{blackCap, whiteFlat, blackFlat, whiteFlat, blackFlat}}
 	// c3
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteWall}}
 
@@ -180,6 +190,7 @@ func TestEmptySquareDetection(t *testing.T) {
 
 	for _, c := range cases {
 		isEmpty, _ := testGame.SquareIsEmpty(c.coords)
+		// testGame.DrawStackTops()
 		if isEmpty != c.empty {
 			t.Errorf("Post-move: coords %v SquareIsEmpty: '%v': should be '%v'\n", c.coords, isEmpty, c.empty)
 		}
@@ -210,13 +221,17 @@ func TestValidMoveDirection(t *testing.T) {
 func TestValidMovement(t *testing.T) {
 	testBoard := MakeGameBoard(5)
 	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
-	testBoard.GameBoard[0][0] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.GameBoard[0][4] = Stack{[]Piece{whiteFlat, blackFlat}}
+	testBoard.GameBoard[4][0] = Stack{[]Piece{whiteFlat, blackFlat}}
 
 	cases := []struct {
 		move    Movement
 		Problem error
 	}{
 		{Movement{Coords: "a5", Direction: "+", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed top board edge")},
+		{Movement{Coords: "a5", Direction: "<", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed left board edge")},
+		{Movement{Coords: "e1", Direction: "-", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed bottom board edge")},
+		{Movement{Coords: "e1", Direction: ">", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed right board edge")},
 		{Movement{Coords: "b2", Direction: "a", Carry: 1, Drops: []int{1}}, errors.New("Cannot move non-existent stack: unoccupied square b2")},
 	}
 
@@ -234,30 +249,31 @@ func TestCoordsAround(t *testing.T) {
 	testGame := MakeGameBoard(5)
 
 	// b2
-	testGame.GameBoard[3][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	testGame.GameBoard[1][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 	// c2
-	testGame.GameBoard[3][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testGame.GameBoard[2][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	// a1
-	testGame.GameBoard[4][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.GameBoard[0][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	// d4
-	testGame.GameBoard[1][3] = Stack{[]Piece{blackCap, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	testGame.GameBoard[3][3] = Stack{[]Piece{blackCap, whiteFlat, blackFlat, whiteFlat, blackFlat}}
 	// c3
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteWall}}
+	// testGame.DrawStackTops()
 
 	cases := []struct {
 		coords       string
 		coordsAround []Coords
 	}{
-		{"b2", []Coords{Coords{3, 2}}},
+		{"b2", []Coords{Coords{2, 1}}},
 		{"b5", nil},
-		{"c2", []Coords{Coords{3, 1}, Coords{2, 2}}},
+		{"c2", []Coords{Coords{1, 1}, Coords{2, 2}}},
 		{"a1", nil},
-		{"b1", []Coords{Coords{4, 0}, Coords{3, 1}}},
+		{"b1", []Coords{Coords{1, 1}}},
 	}
 
 	for _, c := range cases {
-		y, x, _ := testGame.TranslateCoords(c.coords)
-		coordsAround := testGame.NearbyOccupiedCoords(y, x, NorthSouth)
+		x, y, _ := testGame.TranslateCoords(c.coords)
+		coordsAround := testGame.NearbyOccupiedCoords(x, y, NorthSouth)
 		if reflect.DeepEqual(coordsAround, c.coordsAround) == false {
 			t.Errorf("%v Wanted coords %v got CoordsAround %v\n", c.coords, c.coordsAround, coordsAround)
 		}
@@ -268,18 +284,18 @@ func TestUnCoords(t *testing.T) {
 	whiteWin := MakeGameBoard(6)
 
 	testCoords := []struct {
-		y, x       int
+		x, y       int
 		coords     string
 		desiredErr error
 	}{
-		{0, 0, "a6", nil},
-		{2, 2, "c4", nil},
-		{3, 5, "f3", nil},
-		{8, 0, "", errors.New("y '8' is out of bounds")},
+		{0, 0, "a1", nil},
+		{2, 2, "c3", nil},
+		{3, 5, "d6", nil},
+		{8, 0, "", errors.New("x '8' is out of bounds")},
 	}
 
 	for _, c := range testCoords {
-		coords, err := whiteWin.UnTranslateCoords(c.y, c.x)
+		coords, err := whiteWin.UnTranslateCoords(c.x, c.y)
 		if coords != c.coords {
 			t.Errorf("%v, %v: wanted '%v', got '%v'", c.y, c.x, c.coords, coords)
 		}
@@ -293,11 +309,11 @@ func TestPathSearch(t *testing.T) {
 	testGame := MakeGameBoard(3)
 
 	// c2
-	testGame.GameBoard[0][1] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
+	testGame.GameBoard[1][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
 	// b2
 	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	// b3
-	testGame.GameBoard[1][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.GameBoard[2][1] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	// a3
 	testGame.GameBoard[2][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
 
@@ -319,69 +335,68 @@ func TestRoadWin(t *testing.T) {
 	whiteWin.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
 	gameIndex[whiteWin.GameID] = whiteWin
 
-	whiteWin.GameBoard[0][2] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
-	whiteWin.GameBoard[0][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	// whiteWin.GameBoard[2][0] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
+	whiteWin.GameBoard[3][0] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 
-	whiteWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[0][1] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	whiteWin.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-	whiteWin.GameBoard[1][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	whiteWin.GameBoard[1][3] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	whiteWin.GameBoard[2][1] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[3][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 
-	whiteWin.GameBoard[2][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[0][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 	whiteWin.GameBoard[2][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
 
-	whiteWin.GameBoard[3][0] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	whiteWin.GameBoard[3][2] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[0][3] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[2][3] = Stack{[]Piece{whiteFlat, blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	whiteWin.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[3][4] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[4][4] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][5] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[3][5] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[3][6] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[3][7] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][3] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][1] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[4][0] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[5][0] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[5][3] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[6][3] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[7][3] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[3][4] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[2][4] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[1][4] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[0][4] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[0][5] = Stack{[]Piece{whiteFlat}}
 
 	whiteWin.GameBoard[5][4] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[5][5] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[6][5] = Stack{[]Piece{whiteFlat}}
-	whiteWin.GameBoard[7][5] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[5][6] = Stack{[]Piece{whiteFlat}}
+	whiteWin.GameBoard[5][7] = Stack{[]Piece{whiteFlat}}
 
 	blackWin := MakeGameBoard(3)
 	blackWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
-	blackWin.GameBoard[1][0] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[0][1] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
-	blackWin.GameBoard[1][2] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[2][1] = Stack{[]Piece{blackFlat}}
+	blackWin.GameBoard[1][2] = Stack{[]Piece{blackFlat}}
 
 	notARoadWin := MakeGameBoard(3)
 	notARoadWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
-	notARoadWin.GameBoard[0][1] = Stack{[]Piece{whiteWall}}
-	notARoadWin.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
-	notARoadWin.GameBoard[1][0] = Stack{[]Piece{whiteFlat}}
-	notARoadWin.GameBoard[2][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
+	notARoadWin.GameBoard[1][0] = Stack{[]Piece{whiteWall}}
+	notARoadWin.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
+	notARoadWin.GameBoard[0][1] = Stack{[]Piece{whiteFlat}}
+	notARoadWin.GameBoard[0][2] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
 	notARoadWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
-	notARoadWin.GameBoard[2][1] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
-	notARoadWin.GameBoard[1][2] = Stack{[]Piece{blackCap}}
+	notARoadWin.GameBoard[1][2] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
+	notARoadWin.GameBoard[2][1] = Stack{[]Piece{blackCap}}
 	notARoadWin.GameBoard[2][2] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
 
 	noWin := MakeGameBoard(4)
 
 	revWin := MakeGameBoard(5)
-	revWin.GameBoard[0][3] = Stack{[]Piece{blackFlat}}
-	revWin.GameBoard[1][3] = Stack{[]Piece{blackFlat}}
-	revWin.GameBoard[2][3] = Stack{[]Piece{blackFlat}}
-	revWin.GameBoard[2][2] = Stack{[]Piece{blackFlat}}
-	revWin.GameBoard[2][1] = Stack{[]Piece{blackFlat}}
-	revWin.GameBoard[3][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[3][0] = Stack{[]Piece{blackFlat}}
 	revWin.GameBoard[3][1] = Stack{[]Piece{blackFlat}}
-	revWin.GameBoard[4][1] = Stack{[]Piece{blackFlat}}
-	revWin.GameBoard[4][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[3][2] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[2][2] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[1][2] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[3][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[1][3] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[1][4] = Stack{[]Piece{blackFlat}}
+	revWin.GameBoard[3][4] = Stack{[]Piece{blackFlat}}
 
-	revWin.GameBoard[2][4] = Stack{[]Piece{whiteFlat}}
+	revWin.GameBoard[4][2] = Stack{[]Piece{whiteFlat}}
 
 	testCases := []struct {
 		game     *TakGame
@@ -414,47 +429,47 @@ func TestRoadWin(t *testing.T) {
 
 func TestGameEnd(t *testing.T) {
 	testOne := MakeGameBoard(4)
-	testOne.GameBoard[0][3] = Stack{[]Piece{whiteFlat}}
-	testOne.GameBoard[1][3] = Stack{[]Piece{whiteFlat}}
-	testOne.GameBoard[1][2] = Stack{[]Piece{whiteFlat}}
+	testOne.GameBoard[3][0] = Stack{[]Piece{whiteFlat}}
+	testOne.GameBoard[3][1] = Stack{[]Piece{whiteFlat}}
+	testOne.GameBoard[2][1] = Stack{[]Piece{whiteFlat}}
 	testOne.GameBoard[2][2] = Stack{[]Piece{whiteFlat}}
 
 	testTwo := MakeGameBoard(4)
 	testTwo.GameBoard[0][0] = Stack{[]Piece{whiteFlat}}
-	testTwo.GameBoard[0][1] = Stack{[]Piece{blackWall}}
-	testTwo.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
-	testTwo.GameBoard[0][3] = Stack{[]Piece{blackWall}}
-
 	testTwo.GameBoard[1][0] = Stack{[]Piece{blackWall}}
-	testTwo.GameBoard[1][1] = Stack{[]Piece{whiteFlat}}
-	testTwo.GameBoard[1][2] = Stack{[]Piece{blackWall}}
-	testTwo.GameBoard[1][3] = Stack{[]Piece{whiteFlat}}
-
 	testTwo.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
-	testTwo.GameBoard[2][1] = Stack{[]Piece{blackWall}}
-	testTwo.GameBoard[2][2] = Stack{[]Piece{blackWall}}
-	testTwo.GameBoard[2][3] = Stack{[]Piece{whiteFlat}}
-
 	testTwo.GameBoard[3][0] = Stack{[]Piece{blackWall}}
+
+	testTwo.GameBoard[0][1] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[1][1] = Stack{[]Piece{whiteFlat}}
+	testTwo.GameBoard[2][1] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[3][1] = Stack{[]Piece{whiteFlat}}
+
+	testTwo.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
+	testTwo.GameBoard[1][2] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[2][2] = Stack{[]Piece{blackWall}}
+	testTwo.GameBoard[3][2] = Stack{[]Piece{whiteFlat}}
+
+	testTwo.GameBoard[0][3] = Stack{[]Piece{blackWall}}
 	testTwo.GameBoard[3][3] = Stack{[]Piece{whiteFlat}}
 
 	testThree := MakeGameBoard(4)
 	testThree.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
-	testThree.GameBoard[0][1] = Stack{[]Piece{blackWall}}
-	testThree.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
-	testThree.GameBoard[0][3] = Stack{[]Piece{blackWall}}
-
 	testThree.GameBoard[1][0] = Stack{[]Piece{blackWall}}
-	testThree.GameBoard[1][1] = Stack{[]Piece{whiteFlat}}
-	testThree.GameBoard[1][2] = Stack{[]Piece{blackWall}}
-	testThree.GameBoard[1][3] = Stack{[]Piece{whiteWall}}
-
 	testThree.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
-	testThree.GameBoard[2][1] = Stack{[]Piece{blackWall}}
-	testThree.GameBoard[2][2] = Stack{[]Piece{blackWall}}
-	testThree.GameBoard[2][3] = Stack{[]Piece{whiteFlat}}
-
 	testThree.GameBoard[3][0] = Stack{[]Piece{blackWall}}
+
+	testThree.GameBoard[0][1] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[1][1] = Stack{[]Piece{whiteFlat}}
+	testThree.GameBoard[2][1] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[3][1] = Stack{[]Piece{whiteWall}}
+
+	testThree.GameBoard[0][2] = Stack{[]Piece{whiteFlat}}
+	testThree.GameBoard[1][2] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[2][2] = Stack{[]Piece{blackWall}}
+	testThree.GameBoard[3][2] = Stack{[]Piece{whiteFlat}}
+
+	testThree.GameBoard[0][3] = Stack{[]Piece{blackWall}}
 	testThree.GameBoard[3][3] = Stack{[]Piece{whiteFlat}}
 
 	testCases := []struct {
@@ -473,14 +488,17 @@ func TestGameEnd(t *testing.T) {
 		if isOverPreMove != c.isOverPreMove {
 			t.Errorf("Premove: Expected gameOver: %+v, got %+v", c.isOverPreMove, isOverPreMove)
 		}
-		c.game.GameBoard[3][2] = Stack{[]Piece{whiteFlat}}
-		c.game.GameBoard[3][1] = Stack{[]Piece{blackFlat}}
+
+		// c4
+		c.game.GameBoard[2][3] = Stack{[]Piece{whiteFlat}}
+		// b4
+		c.game.GameBoard[1][3] = Stack{[]Piece{blackFlat}}
 		isOverPostMove := c.game.IsGameOver()
 		if isOverPostMove != c.isOverPostMove {
 			t.Errorf("Postmove: Expected gameOver: %+v, got %+v", c.isOverPostMove, isOverPostMove)
 		}
 		checkedWinner, checkErr := c.game.WhoWins()
-		// c.game.DrawStackTops()
+
 		if checkedWinner != c.whoWon {
 			t.Errorf("Problem: wanted winner '%v', got winner '%v'.\n", c.whoWon, checkedWinner)
 		}

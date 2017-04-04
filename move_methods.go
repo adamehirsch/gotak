@@ -23,8 +23,8 @@ func (tg *TakGame) PlacePiece(p Placement) error {
 		return fmt.Errorf("bad placement request: %v", err)
 	}
 	p.Piece.Color = strings.ToLower(p.Piece.Color)
-	y, x, _ := tg.TranslateCoords(p.Coords)
-	square := &tg.GameBoard[y][x]
+	x, y, _ := tg.TranslateCoords(p.Coords)
+	square := &tg.GameBoard[x][y]
 	// Place That Piece!
 	square.Pieces = append([]Piece{p.Piece}, square.Pieces...)
 	if tg.IsBlackTurn == true {
@@ -54,9 +54,9 @@ func (tg *TakGame) MoveStack(movement Movement) error {
 	}
 
 	// I've already validated the move above explicitly; assume no error
-	y, x, _ := tg.TranslateCoords(movement.Coords)
+	x, y, _ := tg.TranslateCoords(movement.Coords)
 	// pointer to the square where the movement originates
-	square := &tg.GameBoard[y][x]
+	square := &tg.GameBoard[x][y]
 	// set up for the sequence of next squares the move will cover
 	var nextSquare *Stack
 	// create a new slice for the pieces in motion, and copy the top pieces from the origin square
@@ -71,16 +71,16 @@ func (tg *TakGame) MoveStack(movement Movement) error {
 
 		switch movement.Direction {
 		case ">":
-			nextSquare = &tg.GameBoard[y][x+1]
+			nextSquare = &tg.GameBoard[x+1][y]
 			x++
 		case "<":
-			nextSquare = &tg.GameBoard[y][x-1]
+			nextSquare = &tg.GameBoard[x-1][y]
 			x--
 		case "+":
-			nextSquare = &tg.GameBoard[y-1][x]
+			nextSquare = &tg.GameBoard[x][y+1]
 			y--
 		case "-":
-			nextSquare = &tg.GameBoard[y+1][x]
+			nextSquare = &tg.GameBoard[x][y-1]
 			y++
 		default:
 			return fmt.Errorf("can't determine movement direction '%v'", movement.Direction)
@@ -139,16 +139,16 @@ func (tg *TakGame) ValidateMovement(m Movement) error {
 
 	boardSize := len(tg.GameBoard)
 	squareIsEmpty, emptyErr := tg.SquareIsEmpty(m.Coords)
-	y, x, translateErr := tg.TranslateCoords(m.Coords)
+	x, y, translateErr := tg.TranslateCoords(m.Coords)
 	if translateErr != nil {
 		return fmt.Errorf("%v: %v", m.Coords, translateErr)
 	}
-	stackHeight := len(tg.GameBoard[y][x].Pieces)
+	stackHeight := len(tg.GameBoard[x][y].Pieces)
 	moveTooBig := tg.WouldHitBoardBoundary(m)
 	unparsableDirection := tg.ValidMoveDirection(m)
 	var stackTop Piece
-	if len(tg.GameBoard[y][x].Pieces) > 0 {
-		stackTop = tg.GameBoard[y][x].Pieces[0]
+	if len(tg.GameBoard[x][y].Pieces) > 0 {
+		stackTop = tg.GameBoard[x][y].Pieces[0]
 	}
 	var totalDrops, minDrop, maxDrop int
 	minDrop = 1
@@ -204,7 +204,7 @@ func (p *Piece) ValidatePiece() error {
 }
 
 // TranslateCoords turns human-submitted coordinates and turns them into actual slice positions on a given board's grid
-func (tg *TakGame) TranslateCoords(coords string) (y int, x int, error error) {
+func (tg *TakGame) TranslateCoords(coords string) (x int, y int, error error) {
 	coords = strings.ToLower(coords)
 	// look for coordinates in the form LetterNumber
 	r := regexp.MustCompile("^([a-h])([1-8])$")
@@ -219,24 +219,24 @@ func (tg *TakGame) TranslateCoords(coords string) (y int, x int, error error) {
 	x = LetterMap[validcoords[0][1]]
 	y, err := strconv.Atoi(validcoords[0][2])
 	boardSize := len(tg.GameBoard)
-	y = (boardSize - 1) - (y - 1)
+	y = (y - 1)
 
 	switch {
 	case err != nil:
 		return -1, -1, fmt.Errorf("problem interpreting coordinates %v", validcoords[0][0])
-	case y < 0 || x >= boardSize:
+	case y < 0 || x >= tg.Size || y >= tg.Size:
 		return -1, -1, fmt.Errorf("coordinates '%v' larger than board size: %v", validcoords[0][0], boardSize)
 	}
-	return y, x, nil
+	return x, y, nil
 }
 
 // UnTranslateCoords converts x, y coords back into human-readable Tak coords
-func (tg *TakGame) UnTranslateCoords(y int, x int) (string, error) {
+func (tg *TakGame) UnTranslateCoords(x int, y int) (string, error) {
 	boardSize := len(tg.GameBoard)
 	if 0 > y || y > boardSize {
 		return "", fmt.Errorf("y '%v' is out of bounds", y)
 	}
-	number := boardSize - y
+	number := y + 1
 
 	letter, ok := NumberToLetter[x]
 	if ok == false {
@@ -248,11 +248,11 @@ func (tg *TakGame) UnTranslateCoords(y int, x int) (string, error) {
 // SquareContents looks at a given spot on a given board and returns what's there
 func (tg *TakGame) SquareContents(coords string) (Stack, error) {
 	grid := tg.GameBoard
-	y, x, err := tg.TranslateCoords(coords)
+	x, y, err := tg.TranslateCoords(coords)
 	if err != nil {
 		return Stack{}, err
 	}
-	foundStack := grid[y][x]
+	foundStack := grid[x][y]
 	return foundStack, nil
 }
 
@@ -327,7 +327,7 @@ func (tg *TakGame) TooManyCapstones(p Placement) error {
 func (tg *TakGame) WouldHitBoardBoundary(m Movement) error {
 	boardSize := len(tg.GameBoard)
 	badMove := tg.ValidMoveDirection(m)
-	y, x, translateError := tg.TranslateCoords(m.Coords)
+	x, y, translateError := tg.TranslateCoords(m.Coords)
 	if badMove != nil {
 		return fmt.Errorf("can't parse move direction '%v'", m.Direction)
 	}
@@ -339,10 +339,10 @@ func (tg *TakGame) WouldHitBoardBoundary(m Movement) error {
 		return fmt.Errorf("Stack movement (%v) would exceed left board edge", m.Drops)
 	case (m.Direction == ">") && (x+len(m.Drops)) >= boardSize:
 		return fmt.Errorf("Stack movement (%v) would exceed right board edge", m.Drops)
-	case (m.Direction == "+") && (y-len(m.Drops)) < 0:
-		return fmt.Errorf("Stack movement (%v) would exceed top board edge", m.Drops)
-	case (m.Direction == "-") && (y+len(m.Drops)) >= boardSize:
+	case (m.Direction == "-") && (y-len(m.Drops)) < 0:
 		return fmt.Errorf("Stack movement (%v) would exceed bottom board edge", m.Drops)
+	case (m.Direction == "+") && (y+len(m.Drops)) >= boardSize:
+		return fmt.Errorf("Stack movement (%v) would exceed top board edge", m.Drops)
 	}
 	return nil
 }
