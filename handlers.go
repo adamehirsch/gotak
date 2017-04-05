@@ -33,7 +33,7 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
-		newGame := MakeGameBoard(boardsize)
+		newGame := MakeGame(boardsize)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(newGame); err != nil {

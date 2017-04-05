@@ -39,7 +39,7 @@ func (tg *TakGame) PlacePiece(p Placement) error {
 }
 
 // MoveStack moves a stack from a valid board position and return the updated board
-func (tg *TakGame) MoveStack(movement Movement) error {
+func (tg *TakGame) MoveStack(m Movement) error {
 
 	if tg.IsGameOver() {
 		winner, err := tg.WhoWins()
@@ -49,27 +49,28 @@ func (tg *TakGame) MoveStack(movement Movement) error {
 		return fmt.Errorf("game over: %v", winner)
 	}
 
-	if err := tg.ValidateMovement(movement); err != nil {
+	if err := tg.ValidateMovement(m); err != nil {
 		return fmt.Errorf("invalid move: %v", err)
 	}
 
 	// I've already validated the move above explicitly; assume no error
-	x, y, _ := tg.TranslateCoords(movement.Coords)
+	x, y, _ := tg.TranslateCoords(m.Coords)
+
 	// pointer to the square where the movement originates
 	square := &tg.GameBoard[x][y]
+
+	carriedPieces := tg.FindMovingPieces(m)
+
+	// remove the carried pieces off the top of the origin stack
+	square.Pieces = square.Pieces[m.Carry:]
+
 	// set up for the sequence of next squares the move will cover
 	var nextSquare *Stack
-	// create a new slice for the pieces in motion, and copy the top pieces from the origin square
-	movingStack := make([]Piece, movement.Carry)
-	copy(movingStack, square.Pieces[0:movement.Carry])
 
-	// remove the carried pieces off the origin stack
-	square.Pieces = square.Pieces[movement.Carry:]
+	// Move That Stack! Each Drop can be a different length, remember
+	for k, DropCount := range m.Drops {
 
-	// Move That Stack!
-	for _, DropCount := range movement.Drops {
-
-		switch movement.Direction {
+		switch m.Direction {
 		case ">":
 			nextSquare = &tg.GameBoard[x+1][y]
 			x++
@@ -83,12 +84,19 @@ func (tg *TakGame) MoveStack(movement Movement) error {
 			nextSquare = &tg.GameBoard[x][y-1]
 			y++
 		default:
-			return fmt.Errorf("can't determine movement direction '%v'", movement.Direction)
+			return fmt.Errorf("can't determine movement direction '%v'", m.Direction)
 		}
 
-		nextSquare.Pieces = append(movingStack[len(movingStack)-(DropCount):], nextSquare.Pieces...)
+		// if we're on the very last drop, there's a stack on the nextSquare, and we're down to one carriedPiece
+		if k == len(m.Drops)-1 && len(nextSquare.Pieces) > 0 && len(carriedPieces) == 1 {
+			if carriedPieces[0].Orientation == Capstone && nextSquare.Pieces[0].Orientation == Wall {
+				nextSquare.Pieces[0].Orientation = Flat
+			}
+		}
+		nextSquare.Pieces = append(carriedPieces[len(carriedPieces)-(DropCount):], nextSquare.Pieces...)
 		// for the next drop, trim off the elements of the slice that have already been dropped off
-		movingStack = movingStack[:len(movingStack)-(DropCount)]
+		carriedPieces = carriedPieces[:len(carriedPieces)-(DropCount)]
+
 	}
 
 	if tg.IsBlackTurn == true {
@@ -97,6 +105,20 @@ func (tg *TakGame) MoveStack(movement Movement) error {
 		tg.IsBlackTurn = true
 	}
 	return nil
+}
+
+// FindMovingPieces determines which pieces will move with a given Movement
+func (tg *TakGame) FindMovingPieces(m Movement) []Piece {
+	// I've already validated the move above explicitly; assume no error
+	x, y, _ := tg.TranslateCoords(m.Coords)
+
+	// pointer to the square where the movement originates
+	square := &tg.GameBoard[x][y]
+
+	// create a new slice for the pieces in motion, and copy the top pieces from the origin square
+	movingStack := make([]Piece, m.Carry)
+	copy(movingStack, square.Pieces[0:m.Carry])
+	return movingStack
 }
 
 //ValidatePlacement checks to see if a Placement order is okay to run
@@ -137,16 +159,15 @@ func (tg *TakGame) ValidatePlacement(p Placement) error {
 // ValidateMovement checks to see if a Movement order is okay to run.
 func (tg *TakGame) ValidateMovement(m Movement) error {
 
-	boardSize := len(tg.GameBoard)
+	boardSize := tg.Size
+	var stackTop Piece
+
 	squareIsEmpty, emptyErr := tg.SquareIsEmpty(m.Coords)
 	x, y, translateErr := tg.TranslateCoords(m.Coords)
 	if translateErr != nil {
 		return fmt.Errorf("%v: %v", m.Coords, translateErr)
 	}
 	stackHeight := len(tg.GameBoard[x][y].Pieces)
-	moveTooBig := tg.WouldHitBoardBoundary(m)
-	unparsableDirection := tg.ValidMoveDirection(m)
-	var stackTop Piece
 	if len(tg.GameBoard[x][y].Pieces) > 0 {
 		stackTop = tg.GameBoard[x][y].Pieces[0]
 	}
@@ -179,12 +200,87 @@ func (tg *TakGame) ValidateMovement(m Movement) error {
 		return fmt.Errorf("Requested drops (%v) exceed number of pieces carried (%v)", m.Drops, m.Carry)
 	case minDrop < 1:
 		return fmt.Errorf("Stack movements (%v) include a drop less than 1: %v", m.Drops, minDrop)
-	case moveTooBig != nil:
-		return moveTooBig
-	case unparsableDirection != nil:
-		return unparsableDirection
-
+	case tg.WouldHitBoardBoundary(m) != nil:
+		return tg.WouldHitBoardBoundary(m)
+	case tg.WallInWay(m) != nil:
+		return tg.WallInWay(m)
+	case tg.ValidMoveDirection(m) != nil:
+		return tg.ValidMoveDirection(m)
 	}
+	return nil
+}
+
+// WallInWay will check to see whether there's a wall in the way of a move that won't be correctly flattened by a capstone. Basically has to play out a whole move, however
+func (tg *TakGame) WallInWay(m Movement) error {
+	if badMove := tg.ValidMoveDirection(m); badMove != nil {
+		return fmt.Errorf("can't parse move direction '%v'", m.Direction)
+	}
+
+	if badMove := tg.WouldHitBoardBoundary(m); badMove != nil {
+		return fmt.Errorf("move would hit board boundary: %v", m.Drops)
+	}
+
+	x, y, translateError := tg.TranslateCoords(m.Coords)
+	if translateError != nil {
+		return fmt.Errorf("can't parse coordinates '%v'", m.Coords)
+	}
+
+	// is the stack we're carrying topped by a capstone?
+	carriedPieces := tg.FindMovingPieces(m)
+
+	hasCapstone := false
+	if carriedPieces[0].Orientation == Capstone {
+		hasCapstone = true
+	}
+
+	// at each square along the carry path, check for a standing stone
+	for move := 1; move <= len(m.Drops); move++ {
+		var xplace, yplace int
+		switch m.Direction {
+		case ">":
+			xplace = x + move
+			yplace = y
+		case "<":
+			xplace = x - move
+			yplace = y
+		case "+":
+			xplace = x
+			yplace = y + move
+		case "-":
+			xplace = x
+			yplace = y - move
+		default:
+			return fmt.Errorf("can't determine movement direction '%v'", m.Direction)
+		}
+
+		nextSquare := tg.GameBoard[xplace][yplace]
+		humanCoords, _ := tg.UnTranslateCoords(xplace, yplace)
+
+		// if there's a piece on the square we're looking at ...
+		if len(nextSquare.Pieces) > 0 {
+			// fmt.Printf("Pieces encountered: %v\n", nextSquare.Pieces)
+			switch nextSquare.Pieces[0].Orientation {
+			// if it's a capstone, you're just out of luck.
+			case Capstone:
+				return fmt.Errorf("Movement can't flatten a capstone at %v", humanCoords)
+			case Wall:
+				// if it's the last stop on the move, the last drop order is one piece, and the last dropped piece is a capstone, we're good
+				if move == len(m.Drops) && m.Drops[move-1] == 1 && hasCapstone {
+					return nil
+				}
+				if hasCapstone == false {
+					return fmt.Errorf("Can't flatten standing stone at %v: no capstone on moving stack", humanCoords)
+				}
+				if m.Drops[move-1] != 1 {
+					return fmt.Errorf("Only allowed to flatten standing stone at %v with 1 capstone, not %v pieces", humanCoords, m.Drops[move-1])
+				}
+				if move != len(m.Drops) {
+					return fmt.Errorf("Can't flatten standing stone at %v: not on last drop of move sequence", humanCoords)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -233,7 +329,7 @@ func (tg *TakGame) TranslateCoords(coords string) (x int, y int, error error) {
 // UnTranslateCoords converts x, y coords back into human-readable Tak coords
 func (tg *TakGame) UnTranslateCoords(x int, y int) (string, error) {
 	boardSize := len(tg.GameBoard)
-	if 0 > y || y > boardSize {
+	if 0 > y || y > boardSize-1 {
 		return "", fmt.Errorf("y '%v' is out of bounds", y)
 	}
 	number := y + 1
@@ -327,10 +423,10 @@ func (tg *TakGame) TooManyCapstones(p Placement) error {
 func (tg *TakGame) WouldHitBoardBoundary(m Movement) error {
 	boardSize := len(tg.GameBoard)
 	badMove := tg.ValidMoveDirection(m)
-	x, y, translateError := tg.TranslateCoords(m.Coords)
 	if badMove != nil {
 		return fmt.Errorf("can't parse move direction '%v'", m.Direction)
 	}
+	x, y, translateError := tg.TranslateCoords(m.Coords)
 	if translateError != nil {
 		return fmt.Errorf("can't parse coordinates '%v'", m.Coords)
 	}
@@ -356,8 +452,6 @@ func (tg *TakGame) ValidMoveDirection(m Movement) error {
 	}
 	return nil
 }
-
-// WallInWay will check to see whether there's a wall in the way of a move that won't be correctly flattened by a capstone.
 
 // IsGameOver detects whether the given game is over
 func (tg *TakGame) IsGameOver() bool {

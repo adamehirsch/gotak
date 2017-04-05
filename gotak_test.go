@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func TestBoardSizeLimits(t *testing.T) {
-	testBoard := MakeGameBoard(5)
+	testBoard := MakeGame(5)
 	// a5
 	testBoard.GameBoard[0][4] = Stack{[]Piece{whiteWall, blackFlat}}
 	// c1
@@ -43,7 +44,7 @@ func TestBoardSizeLimits(t *testing.T) {
 }
 
 func TestBoardSquareEmpty(t *testing.T) {
-	testBoard := MakeGameBoard(5)
+	testBoard := MakeGame(5)
 	// b5
 	testBoard.GameBoard[1][4] = Stack{[]Piece{whiteWall, blackFlat}}
 	// c1
@@ -77,7 +78,7 @@ func TestBoardSquareEmpty(t *testing.T) {
 }
 
 func TestNoPlacementOnOccupiedSquare(t *testing.T) {
-	testBoard := MakeGameBoard(5)
+	testBoard := MakeGame(5)
 	// b5
 	testBoard.GameBoard[1][4] = Stack{[]Piece{whiteFlat, blackFlat}}
 	// a1
@@ -110,7 +111,7 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 }
 
 func TestTurnTaking(t *testing.T) {
-	testBoard := MakeGameBoard(5)
+	testBoard := MakeGame(5)
 	bogusFlat := Piece{"bogus", "flatworm"}
 
 	// b5
@@ -150,7 +151,7 @@ func TestTurnTaking(t *testing.T) {
 }
 
 func TestEmptySquareDetection(t *testing.T) {
-	testGame := MakeGameBoard(5)
+	testGame := MakeGame(5)
 
 	// b2
 	testGame.GameBoard[1][3] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
@@ -198,7 +199,7 @@ func TestEmptySquareDetection(t *testing.T) {
 }
 
 func TestValidMoveDirection(t *testing.T) {
-	testBoard := MakeGameBoard(5)
+	testBoard := MakeGame(5)
 
 	cases := []struct {
 		move    Movement
@@ -219,7 +220,7 @@ func TestValidMoveDirection(t *testing.T) {
 }
 
 func TestValidMovement(t *testing.T) {
-	testBoard := MakeGameBoard(5)
+	testBoard := MakeGame(5)
 	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
 	testBoard.GameBoard[0][4] = Stack{[]Piece{whiteFlat, blackFlat}}
 	testBoard.GameBoard[4][0] = Stack{[]Piece{whiteFlat, blackFlat}}
@@ -246,7 +247,7 @@ func TestValidMovement(t *testing.T) {
 }
 
 func TestCoordsAround(t *testing.T) {
-	testGame := MakeGameBoard(5)
+	testGame := MakeGame(5)
 
 	// b2
 	testGame.GameBoard[1][1] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
@@ -281,7 +282,7 @@ func TestCoordsAround(t *testing.T) {
 }
 
 func TestUnCoords(t *testing.T) {
-	whiteWin := MakeGameBoard(6)
+	whiteWin := MakeGame(6)
 
 	testCoords := []struct {
 		x, y       int
@@ -306,7 +307,7 @@ func TestUnCoords(t *testing.T) {
 }
 
 func TestPathSearch(t *testing.T) {
-	testGame := MakeGameBoard(3)
+	testGame := MakeGame(3)
 
 	// c2
 	testGame.GameBoard[1][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
@@ -331,7 +332,7 @@ func TestPathSearch(t *testing.T) {
 }
 
 func TestRoadWin(t *testing.T) {
-	whiteWin := MakeGameBoard(8)
+	whiteWin := MakeGame(8)
 	whiteWin.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
 	gameIndex[whiteWin.GameID] = whiteWin
 
@@ -365,14 +366,14 @@ func TestRoadWin(t *testing.T) {
 	whiteWin.GameBoard[5][6] = Stack{[]Piece{whiteFlat}}
 	whiteWin.GameBoard[5][7] = Stack{[]Piece{whiteFlat}}
 
-	blackWin := MakeGameBoard(3)
+	blackWin := MakeGame(3)
 	blackWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[0][1] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[1][1] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[2][1] = Stack{[]Piece{blackFlat}}
 	blackWin.GameBoard[1][2] = Stack{[]Piece{blackFlat}}
 
-	notARoadWin := MakeGameBoard(3)
+	notARoadWin := MakeGame(3)
 	notARoadWin.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
 	notARoadWin.GameBoard[1][0] = Stack{[]Piece{whiteWall}}
 	notARoadWin.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
@@ -383,9 +384,9 @@ func TestRoadWin(t *testing.T) {
 	notARoadWin.GameBoard[2][1] = Stack{[]Piece{blackCap}}
 	notARoadWin.GameBoard[2][2] = Stack{[]Piece{whiteWall, whiteFlat, blackFlat}}
 
-	noWin := MakeGameBoard(4)
+	noWin := MakeGame(4)
 
-	revWin := MakeGameBoard(5)
+	revWin := MakeGame(5)
 	revWin.GameBoard[3][0] = Stack{[]Piece{blackFlat}}
 	revWin.GameBoard[3][1] = Stack{[]Piece{blackFlat}}
 	revWin.GameBoard[3][2] = Stack{[]Piece{blackFlat}}
@@ -428,13 +429,13 @@ func TestRoadWin(t *testing.T) {
 }
 
 func TestGameEnd(t *testing.T) {
-	testOne := MakeGameBoard(4)
+	testOne := MakeGame(4)
 	testOne.GameBoard[3][0] = Stack{[]Piece{whiteFlat}}
 	testOne.GameBoard[3][1] = Stack{[]Piece{whiteFlat}}
 	testOne.GameBoard[2][1] = Stack{[]Piece{whiteFlat}}
 	testOne.GameBoard[2][2] = Stack{[]Piece{whiteFlat}}
 
-	testTwo := MakeGameBoard(4)
+	testTwo := MakeGame(4)
 	testTwo.GameBoard[0][0] = Stack{[]Piece{whiteFlat}}
 	testTwo.GameBoard[1][0] = Stack{[]Piece{blackWall}}
 	testTwo.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
@@ -453,7 +454,7 @@ func TestGameEnd(t *testing.T) {
 	testTwo.GameBoard[0][3] = Stack{[]Piece{blackWall}}
 	testTwo.GameBoard[3][3] = Stack{[]Piece{whiteFlat}}
 
-	testThree := MakeGameBoard(4)
+	testThree := MakeGame(4)
 	testThree.GameBoard[0][0] = Stack{[]Piece{blackFlat}}
 	testThree.GameBoard[1][0] = Stack{[]Piece{blackWall}}
 	testThree.GameBoard[2][0] = Stack{[]Piece{whiteFlat}}
@@ -504,6 +505,40 @@ func TestGameEnd(t *testing.T) {
 		}
 		if reflect.DeepEqual(checkErr, c.checkErr) != true {
 			t.Errorf("Problem: wanted error '%v', got '%v'\n", c.checkErr, checkErr)
+		}
+	}
+}
+
+func TestCapstoneStomping(t *testing.T) {
+	testOne := MakeGame(4)
+	testOne.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat}}
+	testOne.GameBoard[0][1] = Stack{[]Piece{blackWall}}
+	testOneMove := Movement{Direction: "+", Carry: 2, Drops: []int{1, 1}, Coords: "a1"}
+
+	testTwo := MakeGame(4)
+	testTwo.GameBoard[0][0] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testTwo.GameBoard[1][0] = Stack{[]Piece{whiteCap}}
+	testTwoMove := Movement{Direction: "<", Carry: 1, Drops: []int{1}, Coords: "b1"}
+
+	testCases := []struct {
+		Game         *TakGame
+		MoveErr      error
+		Move         Movement
+		StompedStack *Stack
+		DesiredStack Stack
+	}{
+		{testOne, errors.New("invalid move: Can't flatten standing stone at a2: no capstone on moving stack"), testOneMove, &testOne.GameBoard[0][1], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
+		{testTwo, nil, testTwoMove, &testTwo.GameBoard[0][0], Stack{Pieces: []Piece{Piece{White, Capstone}, Piece{Black, Flat}, Piece{White, Flat}, Piece{Black, Flat}}}},
+	}
+
+	for _, c := range testCases {
+		err := c.Game.MoveStack(c.Move)
+		fmt.Printf("resulting stack: %v\n", c.StompedStack)
+		if reflect.DeepEqual(c.MoveErr, err) != true {
+			t.Errorf("wanted error '%v', got '%v'", c.MoveErr, err)
+		}
+		if reflect.DeepEqual(*c.StompedStack, c.DesiredStack) != true {
+			t.Errorf("Wanted stack %v, got stack %v\n", c.DesiredStack, *c.StompedStack)
 		}
 	}
 
