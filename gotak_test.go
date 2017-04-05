@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -293,6 +292,7 @@ func TestUnCoords(t *testing.T) {
 		{2, 2, "c3", nil},
 		{3, 5, "d6", nil},
 		{8, 0, "", errors.New("x '8' is out of bounds")},
+		{0, 9, "", errors.New("y '9' is out of bounds")},
 	}
 
 	for _, c := range testCoords {
@@ -302,6 +302,33 @@ func TestUnCoords(t *testing.T) {
 		}
 		if reflect.DeepEqual(err, c.desiredErr) != true {
 			t.Errorf("%v, %v: wanted '%v', got '%v'", c.y, c.x, c.desiredErr, err)
+		}
+	}
+}
+
+func TestTranslateCoords(t *testing.T) {
+	whiteWin := MakeGame(6)
+
+	testCoords := []struct {
+		x, y       int
+		coords     string
+		desiredErr error
+	}{
+		{0, 2, "a3", nil},
+		{2, 5, "c6", nil},
+		{3, 5, "d6", nil},
+		{-1, -1, "i6", errors.New("Could not interpret coordinates 'i6'")},
+		{-1, -1, "m-1", errors.New("Could not interpret coordinates 'm-1'")},
+	}
+
+	for _, c := range testCoords {
+		x, y, err := whiteWin.TranslateCoords(c.coords)
+
+		if reflect.DeepEqual(err, c.desiredErr) != true {
+			t.Errorf("%v, %v: wanted '%v', got '%v'", c.y, c.x, c.desiredErr, err)
+		}
+		if x != c.x || y != c.y {
+			t.Errorf("%v: wanted %v, %v, got %v, %v", c.coords, c.x, c.y, x, y)
 		}
 	}
 }
@@ -509,6 +536,58 @@ func TestGameEnd(t *testing.T) {
 	}
 }
 
+func TestTooManyPieces(t *testing.T) {
+	testOne := MakeGame(3)
+	testOne.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testOne.GameBoard[0][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testOne.GameBoard[1][2] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testOne.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testOne.GameBoard[2][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testOne.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	// testOne.PlacePiece(Placement{Coords: "b1", Piece: whiteFlat})
+
+	testTwo := MakeGame(3)
+	testTwo.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testTwo.GameBoard[0][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testTwo.GameBoard[1][2] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testTwo.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testTwo.GameBoard[2][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testTwo.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testTwo.IsBlackTurn = true
+
+	testThree := MakeGame(3)
+	testThree.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testThree.GameBoard[0][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testThree.GameBoard[1][2] = Stack{[]Piece{whiteWall, whiteFlat}}
+	testThree.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testThree.GameBoard[2][1] = Stack{[]Piece{whiteWall, whiteFlat}}
+	testThree.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testThree.IsBlackTurn = true
+
+	testCases := []struct {
+		game      *TakGame
+		placement Placement
+		winner    string
+		gameOver  bool
+	}{
+		{testOne, Placement{Coords: "b1", Piece: whiteFlat}, "White makes a Flat win: piece limit reached!", true},
+		{testTwo, Placement{Coords: "b1", Piece: blackWall}, "Black makes a Flat win: piece limit reached!", true},
+		{testThree, Placement{Coords: "b1", Piece: blackWall}, "", false},
+	}
+
+	for _, c := range testCases {
+		c.game.PlacePiece(c.placement)
+		if c.gameOver != c.game.IsGameOver() {
+			t.Errorf("Game should be over (%v) but is instead (%v)", c.gameOver, c.game.IsGameOver())
+		}
+		winner, _ := c.game.WhoWins()
+		if winner != c.winner {
+			t.Errorf("wanted winner %v, got %v", c.winner, winner)
+		}
+	}
+
+}
+
 func TestCapstoneStomping(t *testing.T) {
 	testOne := MakeGame(4)
 	testOne.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat}}
@@ -520,6 +599,30 @@ func TestCapstoneStomping(t *testing.T) {
 	testTwo.GameBoard[1][0] = Stack{[]Piece{whiteCap}}
 	testTwoMove := Movement{Direction: "<", Carry: 1, Drops: []int{1}, Coords: "b1"}
 
+	testThree := MakeGame(5)
+	//c4
+	testThree.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
+	//d4
+	testThree.GameBoard[3][3] = Stack{[]Piece{blackWall}}
+	testThreeMove := Movement{Direction: ">", Carry: 2, Drops: []int{1, 1}, Coords: "c4"}
+	testThree.IsBlackTurn = false
+
+	testFour := MakeGame(5)
+	//c4
+	testFour.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
+	//d4
+	testFour.GameBoard[3][3] = Stack{[]Piece{blackWall}}
+	testFourMove := Movement{Direction: ">", Carry: 2, Drops: []int{2}, Coords: "c4"}
+	testFour.IsBlackTurn = false
+
+	testFive := MakeGame(5)
+	//c4
+	testFive.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
+	//d4
+	testFive.GameBoard[3][3] = Stack{[]Piece{blackCap}}
+	testFiveMove := Movement{Direction: ">", Carry: 1, Drops: []int{1}, Coords: "c4"}
+	testFive.IsBlackTurn = false
+
 	testCases := []struct {
 		Game         *TakGame
 		MoveErr      error
@@ -529,11 +632,14 @@ func TestCapstoneStomping(t *testing.T) {
 	}{
 		{testOne, errors.New("invalid move: Can't flatten standing stone at a2: no capstone on moving stack"), testOneMove, &testOne.GameBoard[0][1], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
 		{testTwo, nil, testTwoMove, &testTwo.GameBoard[0][0], Stack{Pieces: []Piece{Piece{White, Capstone}, Piece{Black, Flat}, Piece{White, Flat}, Piece{Black, Flat}}}},
+		{testThree, errors.New("invalid move: Can't flatten standing stone at d4: not on last drop of move sequence"), testThreeMove, &testThree.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
+		{testFour, errors.New("invalid move: Only allowed to flatten standing stone at d4 with 1 capstone, not 2 pieces"), testFourMove, &testFour.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
+		{testFive, errors.New("invalid move: Movement can't flatten a capstone at d4"), testFiveMove, &testFive.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Capstone}}}},
 	}
 
 	for _, c := range testCases {
 		err := c.Game.MoveStack(c.Move)
-		fmt.Printf("resulting stack: %v\n", c.StompedStack)
+		// fmt.Printf("resulting stack: %v\n", c.StompedStack)
 		if reflect.DeepEqual(c.MoveErr, err) != true {
 			t.Errorf("wanted error '%v', got '%v'", c.MoveErr, err)
 		}

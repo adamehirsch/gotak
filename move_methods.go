@@ -134,7 +134,7 @@ func (tg *TakGame) ValidatePlacement(p Placement) error {
 
 	squareIsEmpty, emptyErr := tg.SquareIsEmpty(p.Coords)
 	tooManyCapstones := tg.TooManyCapstones(p)
-	tooManyPieces := tg.TooManyPieces(p)
+	hitPieceLimit, pieceErr := tg.HitPieceLimit()
 	rBlack := regexp.MustCompile("^(?i)black$")
 	rWhite := regexp.MustCompile("^(?i)white$")
 	switch {
@@ -150,8 +150,8 @@ func (tg *TakGame) ValidatePlacement(p Placement) error {
 		return errors.New("no capstones allowed in games smaller than 5x5")
 	case p.Piece.Orientation == Capstone && tooManyCapstones != nil:
 		return tooManyCapstones
-	case tooManyPieces != nil:
-		return tooManyPieces
+	case hitPieceLimit:
+		return pieceErr
 	}
 	return nil
 }
@@ -305,15 +305,18 @@ func (tg *TakGame) TranslateCoords(coords string) (x int, y int, error error) {
 	// look for coordinates in the form LetterNumber
 	r := regexp.MustCompile("^([a-h])([1-8])$")
 	validcoords := r.FindAllStringSubmatch(coords, -1)
+
 	if len(validcoords) <= 0 {
 		return -1, -1, fmt.Errorf("Could not interpret coordinates '%v'", coords)
 	}
+	letter := validcoords[0][1]
+	number := validcoords[0][2]
 	// Assuming we've got a valid looking set of coordinates, look them up on the provided board
 	// ys are numbered, up the sides; xs are lettered across the bottom
 	// Also of note is that Tak coordinates start with "a" as the first y at the *bottom*
 	// of the board, so to get the right slice position for the ys, I've got to do the math below.
-	x = LetterMap[validcoords[0][1]]
-	y, err := strconv.Atoi(validcoords[0][2])
+	x = LetterMap[letter]
+	y, err := strconv.Atoi(number)
 	boardSize := len(tg.GameBoard)
 	y = (y - 1)
 
@@ -365,18 +368,18 @@ func (tg *TakGame) SquareIsEmpty(coords string) (bool, error) {
 	return false, nil
 }
 
-// TooManyPieces checks for hitting a player's piece limit. This will need to be thought out a little more thoroughly,
+// HitPieceLimit checks for hitting a player's piece limit. This will need to be thought out a little more thoroughly,
 // since running out of pieces is a game-end condition.
-func (tg *TakGame) TooManyPieces(p Placement) error {
+func (tg *TakGame) HitPieceLimit() (bool, error) {
 	_, totalPlacedPieces := tg.CountAllPlacedPieces()
 
 	boardSize := len(tg.GameBoard)
 	if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
-		return errors.New("Black player is out of pieces")
+		return true, errors.New("Black player is out of pieces")
 	} else if totalPlacedPieces[White] >= PieceLimits[boardSize] {
-		return errors.New("White player is out of pieces")
+		return true, errors.New("White player is out of pieces")
 	}
-	return nil
+	return false, nil
 }
 
 // TooManyCapstones checks for the presence of too many capstones on the board and prevents placing another
@@ -455,20 +458,21 @@ func (tg *TakGame) ValidMoveDirection(m Movement) error {
 
 // IsGameOver detects whether the given game is over
 func (tg *TakGame) IsGameOver() bool {
-	boardSize := len(tg.GameBoard)
-	_, totalPlacedPieces := tg.CountAllPlacedPieces()
-	if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
-		fmt.Print("1IFW\n")
+	// boardSize := len(tg.GameBoard)
+	// _, totalPlacedPieces := tg.CountAllPlacedPieces()
+	// if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
+	// 	tg.GameOver = true
+	// 	return true
+	// } else if totalPlacedPieces[White] >= PieceLimits[boardSize] {
+	// 	tg.GameOver = true
+	// 	return true
+	// }
+	pieceLimitReached, _ := tg.HitPieceLimit()
 
-		tg.GameOver = true
-		return true
-	} else if totalPlacedPieces[White] >= PieceLimits[boardSize] {
-		fmt.Print("2IFW\n")
-
+	if pieceLimitReached {
 		tg.GameOver = true
 		return true
 	}
-
 	if tg.IsFlatWin() {
 		tg.GameOver = true
 		return true
@@ -540,6 +544,7 @@ func (tg *TakGame) WhoWins() (string, error) {
 		return "", errors.New("game is not over, yet")
 	}
 	stackTops, _ := tg.CountAllPlacedPieces()
+	pieceLimitReached, _ := tg.HitPieceLimit()
 
 	switch {
 	case tg.IsBlackTurn && tg.IsRoadWin(Black):
@@ -563,6 +568,15 @@ func (tg *TakGame) WhoWins() (string, error) {
 	case tg.IsFlatWin() && stackTops[White] == stackTops[Black]:
 		tg.DrawGame = true
 		return "Game ends in a draw!", nil
+	case pieceLimitReached && stackTops[Black] > stackTops[White]:
+		tg.BlackWinner = true
+		return "Black makes a Flat win: piece limit reached!", nil
+	case pieceLimitReached && stackTops[White] > stackTops[Black]:
+		tg.WhiteWinner = true
+		return "White makes a Flat win: piece limit reached!", nil
+	case pieceLimitReached && stackTops[White] == stackTops[Black]:
+		tg.DrawGame = true
+		return "Draw game: piece limit reached!", nil
 	}
 	return "", nil
 }
