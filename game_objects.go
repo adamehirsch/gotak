@@ -9,7 +9,7 @@ import (
 // Various constants for use throughout the game
 const (
 	Flat       string = "flat"
-	Standing   string = "standing"
+	Wall       string = "wall"
 	Capstone   string = "capstone"
 	Black      string = "black"
 	White      string = "white"
@@ -78,8 +78,8 @@ var PieceLimits = map[int]int{
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
 var gameIndex = make(map[uuid.UUID]*TakGame)
 
-// MakeGameBoard takes an integer size and returns a &GameBoard
-func MakeGameBoard(size int) *TakGame {
+// MakeGame takes an integer size and returns a &GameBoard
+func MakeGame(size int) *TakGame {
 
 	// each board gets a unique, random UUIDv4
 	newUUID := uuid.NewV4()
@@ -89,8 +89,8 @@ func MakeGameBoard(size int) *TakGame {
 
 	// ... then populate with the columns of spaces
 	for i := 0; i < size; i++ {
-		row := make([]Stack, size, size)
-		newGameBoard[i] = row
+		column := make([]Stack, size, size)
+		newGameBoard[i] = column
 	}
 
 	newTakGame := TakGame{GameID: newUUID, GameBoard: newGameBoard}
