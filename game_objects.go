@@ -50,8 +50,8 @@ type TakGame struct {
 	GameID      uuid.UUID  `json:"gameID"`
 	GameBoard   [][]Stack  `json:"gameBoard"`
 	IsBlackTurn bool       `json:"isBlackTurn"`
-	BlackWinner bool       `json:"BlackWinner"`
-	WhiteWinner bool       `json:"WhiteWinner"`
+	BlackWinner bool       `json:"blackWinner"`
+	WhiteWinner bool       `json:"whiteWinner"`
 	RoadWin     bool       `json:"roadWin"`
 	FlatWin     bool       `json:"flatWin"`
 	DrawGame    bool       `json:"drawGame"`

@@ -9,25 +9,27 @@ Rules can [be found here](http://cheapass.com/wp-content/uploads/2017/01/TakShor
 - ~~Coordinates for boards~~
   - ~~a, b, c, d on X-axis~~
   - ~~1, 2, 3, 4 ascending on Y-axis~~
-- Concept of a player
+- ~~Concept of a player~~
   - has a color (black or white)
   - has some kind of authentication, someday
 - Player actions
-  - PLACE
-    - needed info:
-      - color (although this should be derived from the player's color)
-      - empty square coordinates
-      - orientation ("flat", "standing", "capstone")
+  - ~~PLACE~~
+    - ~~needed info:~~
+      - color
+      - (color should be validated against the player's color)
+      - ~~empty square coordinates~~
+      - ~~orientation ("flat", "wall", "capstone")~~
     - validate:
-      - destination square is empty
-      - player has not played more than their allowed number of capstones
+      - ~~destination square is empty~~
+      - ~~player has not played more than their allowed number of~~ pieces
+      - ... or capstones
   - MOVE
     - First moves of the game involve placing one stone of the opposite color. Bah.
     - needed info:
-      - Origin square
-      - direction of move (+, -, >, <)
-      - Number of pieces from stack
-      - array of number of pieces to drop off at each square (DEFAULT: [1,1,1,...])
+      - ~~Origin square~~
+      - ~~direction of move (+, -, >, <)~~
+      - ~~Number of pieces from stack~~
+      - ~~array of number of pieces to drop off at each square ( [1,2,1,...])~~
     - validate:
       - requested number of pieces to move does not exceed the size of the origin stack
       - requested number of pieces does not exceed the board's "carry limit", which is the board size
@@ -44,4 +46,4 @@ Rules can [be found here](http://cheapass.com/wp-content/uploads/2017/01/TakShor
   - on a successful move, atomically save the board state (and history?) to disk
 - authentication
   - cookies
-- Hoo, boy: an actual Parser for *Portable Tak Notation* (PTN) https://www.reddit.com/r/Tak/wiki/portable_tak_notation
+- Hoo, boy: maybe an actual Parser for *Portable Tak Notation* (PTN) https://www.reddit.com/r/Tak/wiki/portable_tak_notation
