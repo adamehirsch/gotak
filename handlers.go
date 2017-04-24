@@ -33,14 +33,19 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
-		newGame := MakeGame(boardsize)
+		newGame, err := MakeGame(boardsize)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Could not create requested board: %v\n", err)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(newGame); err != nil {
 			log.Println(err)
 		}
 	} else {
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnprocessableEntity)
 		fmt.Fprintf(w, "Could not understand requested board size: %v\n", vars["boardSize"])
 	}
 

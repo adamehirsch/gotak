@@ -34,6 +34,7 @@ func main() {
 	r.HandleFunc("/newgame/{boardSize}", NewGameHandler)
 	r.HandleFunc("/showgame/{gameID}", ShowGameHandler)
 	r.Handle("/action/{action}/{gameID}", webHandler(ActionHandler)).Methods("PUT")
+
 	// Setup to serve static assest like images, css from the /static/{file} route
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
 

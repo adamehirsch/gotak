@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"math/rand"
 	"time"
 
@@ -81,7 +82,10 @@ var PieceLimits = map[int]int{
 var gameIndex = make(map[uuid.UUID]*TakGame)
 
 // MakeGame takes an integer size and returns a &GameBoard
-func MakeGame(size int) *TakGame {
+func MakeGame(size int) (*TakGame, error) {
+	if size < 3 || size > 8 {
+		return nil, errors.New("board size must be in the range 3 to 8 squares")
+	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// each board gets a unique, random UUIDv4
@@ -105,7 +109,7 @@ func MakeGame(size int) *TakGame {
 
 	gameIndex[newUUID] = &newTakGame
 
-	return &newTakGame
+	return &newTakGame, nil
 }
 
 // LetterMap converts Tak x-values (letters) to their start-at-zero grid index value. 8x8 games are the max size.
