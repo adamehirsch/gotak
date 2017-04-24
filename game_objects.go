@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -63,6 +64,7 @@ type TakGame struct {
 	BlackPlayer *TakPlayer `json:"blackPlayerID"`
 	WhitePlayer *TakPlayer `json:"whitePlayerID"`
 	Size        int        `json:"size"`
+	MoveCount   int        `json:"moveCount"`
 }
 
 // PieceLimits is a map of gridsize to piece limits per player
@@ -80,22 +82,29 @@ var gameIndex = make(map[uuid.UUID]*TakGame)
 
 // MakeGame takes an integer size and returns a &GameBoard
 func MakeGame(size int) *TakGame {
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// each board gets a unique, random UUIDv4
 	newUUID := uuid.NewV4()
-
 	// first make the rows...
 	newGameBoard := make([][]Stack, size, size)
 
 	// ... then populate with the columns of spaces
-	for i := 0; i < size; i++ {
+	for x := 0; x < size; x++ {
 		column := make([]Stack, size, size)
-		newGameBoard[i] = column
+		newGameBoard[x] = column
 	}
 
-	newTakGame := TakGame{GameID: newUUID, GameBoard: newGameBoard}
-	newTakGame.Size = size
+	newTakGame := TakGame{
+		GameID:    newUUID,
+		GameBoard: newGameBoard,
+		Size:      size,
+		// randomly select a first player with a bool
+		IsBlackTurn: (r.Intn(2) == 0),
+	}
+
 	gameIndex[newUUID] = &newTakGame
+
 	return &newTakGame
 }
 

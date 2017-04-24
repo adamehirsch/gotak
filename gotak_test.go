@@ -84,6 +84,7 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	testBoard.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat}}
 	// d2
 	testBoard.GameBoard[3][1] = Stack{[]Piece{whiteCap, blackFlat}}
+	testBoard.IsBlackTurn = false
 
 	cases := []struct {
 		placement Placement
@@ -162,6 +163,7 @@ func TestEmptySquareDetection(t *testing.T) {
 	testGame.GameBoard[3][1] = Stack{[]Piece{blackCap, whiteFlat, blackFlat, whiteFlat, blackFlat}}
 	// c3
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteWall}}
+	testGame.IsBlackTurn = false
 
 	cases := []struct {
 		coords string
@@ -220,16 +222,32 @@ func TestValidMoveDirection(t *testing.T) {
 
 func TestValidMovement(t *testing.T) {
 	testBoard := MakeGame(5)
+	// e2
 	testBoard.GameBoard[4][1] = Stack{[]Piece{whiteFlat, blackFlat}}
+	// a5
 	testBoard.GameBoard[0][4] = Stack{[]Piece{whiteFlat, blackFlat}}
+	// e1
 	testBoard.GameBoard[4][0] = Stack{[]Piece{whiteFlat, blackFlat}}
+	// e3
+	testBoard.GameBoard[4][2] = Stack{[]Piece{blackFlat, whiteFlat}}
+	//d1
+	testBoard.GameBoard[3][0] = Stack{[]Piece{whiteFlat, blackFlat, whiteFlat, blackFlat, whiteFlat, blackFlat, whiteFlat, blackFlat}}
+	testBoard.IsBlackTurn = false
+
+	// testBoard.DrawStackTops()
 
 	cases := []struct {
 		move    Movement
 		Problem error
 	}{
 		{Movement{Coords: "a5", Direction: "+", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed top board edge")},
+		{Movement{Coords: "e3", Direction: "+", Carry: 1, Drops: []int{1}}, errors.New("cannot move black-topped stack on white's turn")},
+		{Movement{Coords: "e1", Direction: "+", Carry: 3, Drops: []int{1}}, errors.New("Stack at e1 is 2 high - cannot carry 3 pieces")},
+		{Movement{Coords: "d1", Direction: "+", Carry: 6, Drops: []int{2, 2, 2}}, errors.New("Requested carry of 6 pieces exceeds board carry limit: 5")},
+		{Movement{Coords: "d1", Direction: "+", Carry: 5, Drops: []int{2, 2, 2}}, errors.New("Requested drops ([2 2 2]) exceed number of pieces carried (5)")},
+		{Movement{Coords: "d1", Direction: "+", Carry: 5, Drops: []int{2, 0, 2}}, errors.New("Stack movements ([2 0 2]) include a drop less than 1: 0")},
 		{Movement{Coords: "a5", Direction: "<", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed left board edge")},
+		{Movement{Coords: "a5", Direction: "h", Carry: 1, Drops: []int{1}}, errors.New("can't parse move direction 'h'")},
 		{Movement{Coords: "e1", Direction: "-", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed bottom board edge")},
 		{Movement{Coords: "e1", Direction: ">", Carry: 1, Drops: []int{1}}, errors.New("Stack movement ([1]) would exceed right board edge")},
 		{Movement{Coords: "b2", Direction: "a", Carry: 1, Drops: []int{1}}, errors.New("Cannot move non-existent stack: unoccupied square b2")},
@@ -336,13 +354,13 @@ func TestTranslateCoords(t *testing.T) {
 func TestPathSearch(t *testing.T) {
 	testGame := MakeGame(3)
 
-	// c2
+	// b1
 	testGame.GameBoard[1][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
 	// b2
 	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
-	// b3
+	// c2
 	testGame.GameBoard[2][1] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
-	// a3
+	// c3
 	testGame.GameBoard[2][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
 
 	blackVictory := testGame.IsRoadWin(Black)
@@ -544,6 +562,7 @@ func TestTooManyPieces(t *testing.T) {
 	testOne.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testOne.GameBoard[2][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
 	testOne.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testOne.IsBlackTurn = false
 	// testOne.PlacePiece(Placement{Coords: "b1", Piece: whiteFlat})
 
 	testTwo := MakeGame(3)
@@ -593,11 +612,13 @@ func TestCapstoneStomping(t *testing.T) {
 	testOne.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat}}
 	testOne.GameBoard[0][1] = Stack{[]Piece{blackWall}}
 	testOneMove := Movement{Direction: "+", Carry: 2, Drops: []int{1, 1}, Coords: "a1"}
+	testOne.IsBlackTurn = false
 
 	testTwo := MakeGame(4)
 	testTwo.GameBoard[0][0] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testTwo.GameBoard[1][0] = Stack{[]Piece{whiteCap}}
 	testTwoMove := Movement{Direction: "<", Carry: 1, Drops: []int{1}, Coords: "b1"}
+	testTwo.IsBlackTurn = false
 
 	testThree := MakeGame(5)
 	//c4

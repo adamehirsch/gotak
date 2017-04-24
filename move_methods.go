@@ -264,10 +264,6 @@ func (tg *TakGame) WallInWay(m Movement) error {
 			case Capstone:
 				return fmt.Errorf("Movement can't flatten a capstone at %v", humanCoords)
 			case Wall:
-				// if it's the last stop on the move, the last drop order is one piece, and the last dropped piece is a capstone, we're good
-				if move == len(m.Drops) && m.Drops[move-1] == 1 && hasCapstone {
-					return nil
-				}
 				if hasCapstone == false {
 					return fmt.Errorf("Can't flatten standing stone at %v: no capstone on moving stack", humanCoords)
 				}
@@ -277,6 +273,8 @@ func (tg *TakGame) WallInWay(m Movement) error {
 				if move != len(m.Drops) {
 					return fmt.Errorf("Can't flatten standing stone at %v: not on last drop of move sequence", humanCoords)
 				}
+				// if it's the last stop on the move, the last drop order is one piece, and the last dropped piece is a capstone, we're good
+				return nil
 			}
 		}
 	}
@@ -312,7 +310,6 @@ func (tg *TakGame) TranslateCoords(coords string) (x int, y int, error error) {
 	letter := validcoords[0][1]
 	number := validcoords[0][2]
 	// Assuming we've got a valid looking set of coordinates, look them up on the provided board
-	// ys are numbered, up the sides; xs are lettered across the bottom
 	// Also of note is that Tak coordinates start with "a" as the first y at the *bottom*
 	// of the board, so to get the right slice position for the ys, I've got to do the math below.
 	x = LetterMap[letter]

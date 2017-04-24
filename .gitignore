@@ -1,2 +1,6 @@
 test_*
 *swp
+conf.toml
+*.cert
+*.pem
+*.key

@@ -128,6 +128,8 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(requestedGame)
+	gamePayload, _ := json.Marshal(requestedGame)
+	// json.NewEncoder(w).Encode(requestedGame)
+	w.Write([]byte(gamePayload))
 	return nil
 }
