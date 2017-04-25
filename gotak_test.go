@@ -8,6 +8,13 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+func TestBoardTooBig(t *testing.T) {
+	testBoard, err := MakeGame(23)
+	if testBoard != nil || err.Error() != "board size must be in the range 3 to 8 squares" {
+		t.Errorf("Incorrect response from goofily large MakeGame request: %v, %v", testBoard, err.Error())
+	}
+}
+
 func TestBoardSizeLimits(t *testing.T) {
 	testBoard, _ := MakeGame(5)
 	// a5

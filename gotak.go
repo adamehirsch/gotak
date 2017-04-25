@@ -9,31 +9,47 @@ import (
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
+	"gopkg.in/authboss.v1"
 )
 
-func main() {
+var (
+	ab            = authboss.New()
+	sslKey        string
+	sslCert       string
+	jwtSigningKey string
+)
+
+func init() {
 	viper.SetConfigName("conf")
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {
-		panic("can't read configuration file")
+		panic(fmt.Sprintf("can't read configuration file: %v", err))
 	}
-	// jwtSigningKey := viper.GetString("production.jwtSigningKey")
-	sslKey := viper.GetString("production.sslKey")
-	sslCert := viper.GetString("production.sslCert")
+
+	sslKey = viper.GetString("production.sslKey")
+	sslCert = viper.GetString("production.sslCert")
+	jwtSigningKey = viper.GetString("production.jwtSigningKey")
+
 	if _, err := os.Stat(sslKey); os.IsNotExist(err) {
-		panic(fmt.Sprintf("can't read SSL key %v", sslKey))
+		panic(fmt.Sprintf("can't read SSL key %v: %v", sslKey, err))
 	}
 
 	if _, err := os.Stat(sslCert); os.IsNotExist(err) {
-		panic(fmt.Sprintf("can't read SSL cert %v", sslCert))
+		panic(fmt.Sprintf("can't read SSL cert %v: %v", sslCert, err))
 	}
 
+}
+
+func main() {
+
 	r := mux.NewRouter()
-	// Routes consist of a path and a handler function.
+
 	r.HandleFunc("/", SlashHandler)
-	r.HandleFunc("/newgame/{boardSize}", NewGameHandler)
-	r.HandleFunc("/showgame/{gameID}", ShowGameHandler)
-	r.Handle("/action/{action}/{gameID}", webHandler(ActionHandler)).Methods("PUT")
+	r.Handle("/login", LoginHandler).Methods("GET")
+
+	r.Handle("/newgame/{boardSize}", jwtMiddleware.Handler(NewGameHandler))
+	r.Handle("/showgame/{gameID}", jwtMiddleware.Handler(ShowGameHandler))
+	r.Handle("/action/{action}/{gameID}", jwtMiddleware.Handler(webHandler(ActionHandler))).Methods("PUT")
 
 	// Setup to serve static assest like images, css from the /static/{file} route
 	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))

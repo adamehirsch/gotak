@@ -9,6 +9,10 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
+
+	jwtmiddleware "github.com/auth0/go-jwt-middleware"
+	jwt "github.com/dgrijalva/jwt-go"
 
 	"github.com/gorilla/mux"
 	"github.com/satori/go.uuid"
@@ -29,7 +33,7 @@ func SlashHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewGameHandler will generate a new board with a specified size and return the UUID by which it will be known throughout its short, happy life.
-func NewGameHandler(w http.ResponseWriter, r *http.Request) {
+var NewGameHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
@@ -49,10 +53,10 @@ func NewGameHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "Could not understand requested board size: %v\n", vars["boardSize"])
 	}
 
-}
+})
 
 // ShowGameHandler takes a given UUID, looks up the game (if it exists) and returns the current grid
-func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
+var ShowGameHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
 
@@ -73,7 +77,7 @@ func ShowGameHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "requested game ID '%v' not understood.", gameID)
 
 	}
-}
+})
 
 /*
 ActionHandler will accept a JSON action for a particular game, determine whether it's a placement or movement, execute it if rules allow, and then return the updated grid.
@@ -138,3 +142,30 @@ func ActionHandler(w http.ResponseWriter, r *http.Request) *WebError {
 	w.Write([]byte(gamePayload))
 	return nil
 }
+
+// LoginHandler will eventually check credentials before issuing a JWT auth token
+var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	/* Create the token */
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	// /* Create a map to store our claims */
+	claims := token.Claims.(jwt.MapClaims)
+
+	/* Set token claims  - hardcoded for right now*/
+	claims["name"] = "Ado Kukic"
+	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+
+	/* Sign the token with our secret */
+	tokenString, _ := token.SignedString([]byte(jwtSigningKey))
+
+	/* Finally, write the token to the browser window */
+	w.Write([]byte(tokenString))
+})
+
+var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
+		return []byte(jwtSigningKey), nil
+	},
+	SigningMethod: jwt.SigningMethodHS256,
+})
