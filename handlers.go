@@ -153,19 +153,58 @@ var LoginHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request)
 	claims := token.Claims.(jwt.MapClaims)
 
 	/* Set token claims  - hardcoded for right now*/
-	claims["name"] = "Ado Kukic"
+	claims["name"] = "Reginald Oot"
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
 	/* Sign the token with our secret */
-	tokenString, _ := token.SignedString([]byte(jwtSigningKey))
+	tokenString, _ := token.SignedString(jwtSigningKey)
 
 	/* Finally, write the token to the browser window */
 	w.Write([]byte(tokenString))
 })
 
+// RegisterHandler will register new players
+func RegisterHandler(w http.ResponseWriter, r *http.Request) *WebError {
+	var player PlayerReg
+
+	// read in only up to 1MB of data from the client. Come on, now.
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
+	if err != nil {
+		log.Println(err)
+	}
+
+	if unmarshalError := json.Unmarshal(body, &player); unmarshalError != nil {
+		return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
+	}
+
+	// json.Unmarshal will sometimes parse valid but inapplicable JSON into an empty struct. Catch that.
+	if player.UserName == "" || player.Password == "" {
+		return &WebError{errors.New("Missing new player username or password"), "Missing new player username or password", http.StatusUnprocessableEntity}
+	}
+
+	// TODO: verify no username collisions in db
+
+	// every player gets a unique uuid
+	newPlayerID := uuid.NewV4()
+	newPlayerHash := HashPassword(player.Password)
+	newTakPlayer := TakPlayer{
+		Name:         player.UserName,
+		PasswordHash: newPlayerHash,
+		PlayerID:     newPlayerID,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	playerRegistration, _ := json.Marshal(newTakPlayer)
+	w.Write([]byte(playerRegistration))
+
+	return nil
+}
+
+// jwtMiddleware will check a given token and verify that it was signed with the key and method specified below before passing access to its referenced Handler
 var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return []byte(jwtSigningKey), nil
+		return jwtSigningKey, nil
 	},
 	SigningMethod: jwt.SigningMethodHS256,
 })

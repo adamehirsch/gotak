@@ -4,3 +4,4 @@ conf.toml
 *.cert
 *.pem
 *.key
+gotak.db

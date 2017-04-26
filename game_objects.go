@@ -42,9 +42,16 @@ type Stack struct {
 
 // TakPlayer describes a human player
 type TakPlayer struct {
-	Name        string     `json:"name"`
-	PlayerID    uuid.UUID  `json:"playerID"`
-	PlayedGames []*TakGame `json:"playedGames"`
+	Name         string     `json:"name"`
+	PlayerID     uuid.UUID  `json:"playerID"`
+	PlayedGames  []*TakGame `json:"playedGames"`
+	PasswordHash []byte     `json:"-"`
+}
+
+// PlayerReg is a struct used when people register a new player
+type PlayerReg struct {
+	UserName string `json:"username"`
+	Password string `json:"password"`
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
