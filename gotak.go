@@ -7,14 +7,12 @@ import (
 	"os"
 
 	"golang.org/x/crypto/bcrypt"
-
-	"database/sql"
+	authboss "gopkg.in/authboss.v1"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
-	"gopkg.in/authboss.v1"
 )
 
 var (
@@ -25,7 +23,7 @@ var (
 )
 
 func init() {
-	// read in the configuration file, set up the database
+	// read in the configuration file
 	viper.SetConfigName("conf")
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {
@@ -34,6 +32,7 @@ func init() {
 
 	sslKey = viper.GetString("production.sslKey")
 	sslCert = viper.GetString("production.sslCert")
+
 	jwtSigningKey = []byte(viper.GetString("production.jwtSigningKey"))
 
 	if _, err := os.Stat(sslKey); os.IsNotExist(err) {
@@ -44,9 +43,8 @@ func init() {
 		panic(fmt.Sprintf("can't read SSL cert %v: %v", sslCert, err))
 	}
 
-	database, _ := sql.Open("sqlite3", "./gotak.db")
-	statement, _ := database.Prepare("CREATE TABLE IF NOT EXISTS users (guid CHARACTER(37) PRIMARY KEY, username VARCHAR UNIQUE NOT NULL, hash VARCHAR)")
-	statement.Exec()
+	// ensure the database is setup
+	InitDB(viper.GetString("production.dbname"))
 
 }
 
@@ -71,6 +69,7 @@ func VerifyPassword(pw []byte, hpw []byte) bool {
 }
 
 func main() {
+	defer db.Close()
 
 	r := mux.NewRouter()
 
@@ -87,4 +86,5 @@ func main() {
 
 	// Bind to a port and pass our router in, logging every request to Stdout
 	log.Fatal(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))
+
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +15,9 @@ import (
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	jwt "github.com/dgrijalva/jwt-go"
 
+	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
+
 	"github.com/satori/go.uuid"
 )
 
@@ -57,6 +60,13 @@ var NewGameHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Reques
 
 // ShowGameHandler takes a given UUID, looks up the game (if it exists) and returns the current grid
 var ShowGameHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	user := context.Get(r, "user")
+	fmt.Fprintf(w, "This is an authenticated request")
+	fmt.Fprintf(w, "Claim content:\n")
+	fmt.Printf("Claims user: %v\n", user)
+	// for k, v := range user.(*jwt.Token).Claims {
+	// 	fmt.Fprintf(w, "%s :\t%#v\n", k, v)
+	// }
 	vars := mux.Vars(r)
 	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
 
@@ -182,11 +192,30 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) *WebError {
 		return &WebError{errors.New("Missing new player username or password"), "Missing new player username or password", http.StatusUnprocessableEntity}
 	}
 
-	// TODO: verify no username collisions in db
+	// // TODO: verify no username collisions in db
+	var matchName string
+
+	queryErr := db.QueryRow("SELECT username FROM users WHERE username = ?", player.UserName).Scan(&matchName)
+
+	switch {
+	case queryErr == sql.ErrNoRows:
+		break
+	case err != nil:
+		log.Fatal(err)
+	case matchName != "":
+		return &WebError{fmt.Errorf("new player username %v conflicts with existing username", matchName), "username already taken", http.StatusUnprocessableEntity}
+	}
 
 	// every player gets a unique uuid
 	newPlayerID := uuid.NewV4()
 	newPlayerHash := HashPassword(player.Password)
+
+	stmt, _ := db.Prepare("INSERT INTO users(guid, username, hash) VALUES(?, ?, ?)")
+	_, err = stmt.Exec(newPlayerID.String(), player.UserName, newPlayerHash)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	newTakPlayer := TakPlayer{
 		Name:         player.UserName,
 		PasswordHash: newPlayerHash,
@@ -203,6 +232,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) *WebError {
 
 // jwtMiddleware will check a given token and verify that it was signed with the key and method specified below before passing access to its referenced Handler
 var jwtMiddleware = jwtmiddleware.New(jwtmiddleware.Options{
+	// TODO check expiry time, not just a valid token signature
 	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
 		return jwtSigningKey, nil
 	},
