@@ -11,6 +11,7 @@ import (
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/justinas/alice"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
 )
@@ -20,6 +21,7 @@ var (
 	sslKey        string
 	sslCert       string
 	jwtSigningKey []byte
+	loginDays     int
 )
 
 func init() {
@@ -32,6 +34,7 @@ func init() {
 
 	sslKey = viper.GetString("production.sslKey")
 	sslCert = viper.GetString("production.sslCert")
+	loginDays = viper.GetInt("production.loginDays")
 
 	jwtSigningKey = []byte(viper.GetString("production.jwtSigningKey"))
 
@@ -73,16 +76,16 @@ func main() {
 
 	r := mux.NewRouter()
 
-	// checkedChain := alice.New(errorHandler, checkJWTsignature.Handler(h))
+	checkedChain := alice.New(checkJWTsignature.Handler)
 
 	r.HandleFunc("/", SlashHandler)
 	r.Handle("/login", errorHandler(Login)).Methods("POST")
 	r.Handle("/register", errorHandler(Register)).Methods("POST")
 
-	// r.Handle("/newgame/{boardSize}", checkedChain.Then(NewGame))
-	// r.Handle("/showgame/{gameID}", checkedChain.Then(ShowGame))
+	r.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(NewGame)))
+	r.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(ShowGame)))
 	//
-	// r.Handle("/action/{action}/{gameID}", checkedChain.Then(ActionHandler)).Methods("PUT")
+	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(Action))).Methods("PUT")
 
 	// Bind to a port and pass our router in, logging every request to Stdout
 	log.Fatal(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))

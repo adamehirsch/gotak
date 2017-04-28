@@ -163,3 +163,9 @@ type WebError struct {
 	Message string
 	Code    int
 }
+
+// TakJWT is a simple struct to return JWTs in JSON
+type TakJWT struct {
+	JWT     string `json:"jwt"`
+	Message string `json:"message"`
+}

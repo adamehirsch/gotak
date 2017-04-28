@@ -20,21 +20,15 @@ import (
 	"github.com/satori/go.uuid"
 )
 
-// // Let's try simplifying error reporting back to the user by making our own middleware Handler that produces WebError
+// simplify error reporting in web handlers by making our own type that handles WebError return values
 type errorHandler func(http.ResponseWriter, *http.Request) *WebError
 
-// ... and make the errorHandler type satisy the http.Handler interface requirements
+// ... make the errorHandler type satisy the http.Handler interface requirements
 func (fn errorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if e := fn(w, r); e != nil { // note that e is *webError, not os.Error.
 		http.Error(w, e.Message, e.Code)
 	}
 }
-
-// func errorHandler(next http.Handler) http.Handler {
-//   return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//     next.ServeHTTP(w, r)
-//   })
-// }
 
 // SlashHandler is a slim handler to present some canned HTML for humans to read
 func SlashHandler(w http.ResponseWriter, r *http.Request) {
@@ -177,9 +171,10 @@ func Login(w http.ResponseWriter, r *http.Request) *WebError {
 
 	// json.Unmarshal will parse valid but inapplicable JSON into an empty struct. Catch that.
 	if player.UserName == "" || player.Password == "" {
-		return &WebError{errors.New("Missing new player username or password"), "Missing new player username or password", http.StatusUnprocessableEntity}
+		return &WebError{errors.New("Missing username or password"), "Missing player username or password", http.StatusUnprocessableEntity}
 	}
 
+	// look up the details
 	queryErr := db.QueryRow("SELECT username, hash FROM users WHERE username = ?", player.UserName).Scan(&name, &hash)
 
 	switch {
@@ -192,25 +187,15 @@ func Login(w http.ResponseWriter, r *http.Request) *WebError {
 		return &WebError{errors.New("Incorrect password"), "incorrect password", http.StatusBadRequest}
 	}
 
-	// Okay, the person's authenticated. Give them a token.
-	token := jwt.New(jwt.SigningMethodHS256)
+	token := generateJWT(player, "successfully logged in")
 
-	// /* Create a map to store our claims */
-	claims := token.Claims.(jwt.MapClaims)
-
-	// TODO set user to logged in user
-	claims["user"] = player.UserName
-	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
-
-	/* Sign the token with our secret */
-	tokenString, _ := token.SignedString(jwtSigningKey)
-
-	/* Finally, write the token to the browser window */
-	w.Write([]byte(tokenString))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(token)
 	return nil
 }
 
-// Register registers new players
+// Register handles new players
 func Register(w http.ResponseWriter, r *http.Request) *WebError {
 	var player PlayerCredentials
 
@@ -254,48 +239,41 @@ func Register(w http.ResponseWriter, r *http.Request) *WebError {
 		log.Fatal(err)
 	}
 
-	newTakPlayer := TakPlayer{
-		Name:         player.UserName,
-		PasswordHash: newPlayerHash,
-		PlayerID:     newPlayerID,
-	}
-
+	tokenBytes := generateJWT(player, "new player successfully created")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	playerRegistration, _ := json.Marshal(newTakPlayer)
-	w.Write([]byte(playerRegistration))
-
+	w.Write(tokenBytes)
 	return nil
+
 }
 
 // checkJWTsignature will check a given token and verify that it was signed with the key and method specified below before passing access to its referenced Handler
 var checkJWTsignature = jwtmiddleware.New(jwtmiddleware.Options{
-	ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
-		return jwtSigningKey, nil
-	},
-	SigningMethod: jwt.SigningMethodHS256,
-	Debug:         false,
+	ValidationKeyGetter: jwtKeyFn,
+	SigningMethod:       jwt.SigningMethodHS256,
+	Debug:               false,
 })
 
 func jwtKeyFn(token *jwt.Token) (interface{}, error) {
 	return jwtSigningKey, nil
 }
 
-// func checkExpireTime(next http.Handler) http.Handler {
-// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		if token, err := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn); err == nil {
-// 			claims := token.Claims.(jwt.MapClaims)
-// 			expiryUnixTime := int64(claims["exp"].(float64))
-// 			nowTime := time.Now().Unix()
-// 			switch {
-// 			case nowTime >= expiryUnixTime:
-// 				fmt.Printf("(%v) Token expired at %v\n", time.Now().Format(time.UnixDate), expiryUnixTime)
-// 			case nowTime < expiryUnixTime:
-// 				fmt.Printf("(%v) Token expires at %v\n", time.Now().Format(time.UnixDate), expiryUnixTime)
-// 			}
-// 			// fmt.Printf("at %v: Token for user %v expires %v (%v)\n", nowTime, claims["user"], expiryUnixTime)
-// 		}
-// 		next.ServeHTTP(w, r)
-//
-// 	})
-// }
+func generateJWT(p PlayerCredentials, m string) []byte {
+	// Okay, the person's authenticated. Give them a token.
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	// /* Create a map to store our claims */
+	claims := token.Claims.(jwt.MapClaims)
+
+	claims["user"] = p.UserName
+	claims["exp"] = time.Now().Add(time.Hour * 24 * time.Duration(loginDays)).Unix()
+
+	// sign the token
+	tokenString, _ := token.SignedString(jwtSigningKey)
+	thisJWT := TakJWT{
+		JWT:     tokenString,
+		Message: m,
+	}
+	JWTjson, _ := json.Marshal(thisJWT)
+	return []byte(JWTjson)
+}
