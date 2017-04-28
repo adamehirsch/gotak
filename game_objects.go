@@ -48,8 +48,8 @@ type TakPlayer struct {
 	PasswordHash []byte       `json:"-"`
 }
 
-// PlayerReg is a struct used when people register a new player
-type PlayerReg struct {
+// PlayerCredentials is a struct used when people register a new player
+type PlayerCredentials struct {
 	UserName string `json:"username"`
 	Password string `json:"password"`
 }

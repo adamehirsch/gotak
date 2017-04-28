@@ -60,8 +60,8 @@ func HashPassword(pw string) []byte {
 }
 
 // VerifyPassword will verify ... wait for it ... a password matches a hash
-func VerifyPassword(pw []byte, hpw []byte) bool {
-	if err := bcrypt.CompareHashAndPassword(hpw, pw); err != nil {
+func VerifyPassword(pw string, hpw string) bool {
+	if err := bcrypt.CompareHashAndPassword([]byte(hpw), []byte(pw)); err != nil {
 		return false
 	}
 	return true
@@ -73,16 +73,16 @@ func main() {
 
 	r := mux.NewRouter()
 
+	// checkedChain := alice.New(errorHandler, checkJWTsignature.Handler(h))
+
 	r.HandleFunc("/", SlashHandler)
-	r.Handle("/login", LoginHandler).Methods("GET")
-	r.Handle("/register", webHandler(RegisterHandler)).Methods("POST")
+	r.Handle("/login", errorHandler(Login)).Methods("POST")
+	r.Handle("/register", errorHandler(Register)).Methods("POST")
 
-	r.Handle("/newgame/{boardSize}", jwtMiddleware.Handler(NewGameHandler))
-	r.Handle("/showgame/{gameID}", jwtMiddleware.Handler(ShowGameHandler))
-	r.Handle("/action/{action}/{gameID}", jwtMiddleware.Handler(webHandler(ActionHandler))).Methods("PUT")
-
-	// Setup to serve static assest like images, css from the /static/{file} route
-	r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("./static/"))))
+	// r.Handle("/newgame/{boardSize}", checkedChain.Then(NewGame))
+	// r.Handle("/showgame/{gameID}", checkedChain.Then(ShowGame))
+	//
+	// r.Handle("/action/{action}/{gameID}", checkedChain.Then(ActionHandler)).Methods("PUT")
 
 	// Bind to a port and pass our router in, logging every request to Stdout
 	log.Fatal(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))
