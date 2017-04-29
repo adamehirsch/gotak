@@ -24,5 +24,10 @@ func InitDB(dataSourceName string) {
 	makeUsers.Exec()
 	makeGames, _ := db.Prepare("CREATE TABLE IF NOT EXISTS games (guid CHARACTER(37) PRIMARY KEY, gameBlob VARCHAR)")
 	makeGames.Exec()
+}
 
+// StoreTakGame puts a given game into the database
+func StoreTakGame(tg *TakGame) error {
+
+	return nil
 }

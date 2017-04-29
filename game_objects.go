@@ -95,8 +95,8 @@ func MakeGame(size int) (*TakGame, error) {
 	}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// each board gets a unique, random UUIDv4
-	newUUID := uuid.NewV4()
+	// each board gets a guid
+	newUUID := uuid.NewV1()
 	// first make the rows...
 	newGameBoard := make([][]Stack, size, size)
 

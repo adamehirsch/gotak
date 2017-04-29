@@ -23,14 +23,14 @@ import (
 // simplify error reporting in web handlers by making our own type that handles WebError return values
 type errorHandler func(http.ResponseWriter, *http.Request) *WebError
 
-// ... make the errorHandler type satisy the http.Handler interface requirements
+// ... make anything of errorHandler type satisy the http.Handler interface requirements
 func (fn errorHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if e := fn(w, r); e != nil { // note that e is *webError, not os.Error.
 		http.Error(w, e.Message, e.Code)
 	}
 }
 
-// SlashHandler is a slim handler to present some canned HTML for humans to read
+// SlashHandler is a slim handler to present some canned text for humans to read
 func SlashHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("GOTAK!\n"))
 }
@@ -230,7 +230,7 @@ func Register(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	// every player gets a unique uuid
-	newPlayerID := uuid.NewV4()
+	newPlayerID := uuid.NewV1()
 	newPlayerHash := HashPassword(player.Password)
 
 	stmt, _ := db.Prepare("INSERT INTO users(guid, username, hash) VALUES(?, ?, ?)")
