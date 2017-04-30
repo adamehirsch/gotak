@@ -70,7 +70,7 @@ func ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 	vars := mux.Vars(r)
 	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
 
-		if requestedGame, ok := gameIndex[gameID]; ok == true {
+		if requestedGame, err := RetrieveTakGame(gameID); err == nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
 			if err := json.NewEncoder(w).Encode(requestedGame); err != nil {
@@ -102,8 +102,8 @@ func Action(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	// fetch out and validate that we've got a game by that ID
-	requestedGame, ok := gameIndex[gameID]
-	if ok != true {
+	requestedGame, err := RetrieveTakGame(gameID)
+	if err != nil {
 		return &WebError{err, "No such game found", http.StatusNotFound}
 	}
 
@@ -127,8 +127,8 @@ func Action(w http.ResponseWriter, r *http.Request) *WebError {
 			return &WebError{errors.New("Missing piece and/or coordinates"), "Placement is missing piece and/or coordinates", http.StatusUnprocessableEntity}
 		}
 
-		if err := requestedGame.PlacePiece(placement); err != nil {
-			return &WebError{err, fmt.Sprintf("problem placing piece at %v: %v", placement.Coords, err), 409}
+		if placementErr := requestedGame.PlacePiece(placement); placementErr != nil {
+			return &WebError{err, fmt.Sprintf("problem placing piece at %v: %v", placement.Coords, placementErr), 409}
 		}
 
 	} else if vars["action"] == "move" {
@@ -142,14 +142,16 @@ func Action(w http.ResponseWriter, r *http.Request) *WebError {
 			return &WebError{errors.New("Missing coordinates and/or direction"), "Missing coordinates and/or direction", http.StatusUnprocessableEntity}
 		}
 
-		if err := requestedGame.MoveStack(movement); err != nil {
-			return &WebError{err, fmt.Sprintf("%v: %v", err, movement.Coords), 409}
+		if movementErr := requestedGame.MoveStack(movement); movementErr != nil {
+			return &WebError{err, fmt.Sprintf("%v: %v", movementErr, movement.Coords), 409}
 		}
+	}
+	if err = StoreTakGame(requestedGame); err != nil {
+		return &WebError{err, fmt.Sprintf("storage problem: %v", err), http.StatusInternalServerError}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	gamePayload, _ := json.Marshal(requestedGame)
-	// json.NewEncoder(w).Encode(requestedGame)
 	w.Write([]byte(gamePayload))
 	return nil
 }
