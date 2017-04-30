@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/dgrijalva/jwt-go/request"
@@ -234,7 +236,7 @@ func Register(w http.ResponseWriter, r *http.Request) *WebError {
 	newPlayerHash := HashPassword(player.Password)
 
 	stmt, _ := db.Prepare("INSERT INTO users(guid, username, hash) VALUES(?, ?, ?)")
-	_, err = stmt.Exec(newPlayerID.String(), player.UserName, newPlayerHash)
+	_, err = stmt.Exec(newPlayerID, player.UserName, newPlayerHash)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -276,4 +278,24 @@ func generateJWT(p PlayerCredentials, m string) []byte {
 	}
 	JWTjson, _ := json.Marshal(thisJWT)
 	return []byte(JWTjson)
+}
+
+// HashPassword uses bcrypt to produce a password hash suitable for storage
+func HashPassword(pw string) []byte {
+	password := []byte(pw)
+	// Hashing the password with the default cost should be ample
+	hashedPassword, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+	return hashedPassword
+}
+
+// VerifyPassword will verify ... wait for it ... a password matches a hash
+func VerifyPassword(pw string, hpw string) bool {
+	if err := bcrypt.CompareHashAndPassword([]byte(hpw), []byte(pw)); err != nil {
+		return false
+	}
+	return true
+
 }

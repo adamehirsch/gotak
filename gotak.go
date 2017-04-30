@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 
-	"golang.org/x/crypto/bcrypt"
 	authboss "gopkg.in/authboss.v1"
 
 	"github.com/gorilla/handlers"
@@ -48,26 +47,6 @@ func init() {
 
 	// ensure the database is setup
 	InitDB(viper.GetString("production.dbname"))
-
-}
-
-// HashPassword uses bcrypt to produce a password hash suitable for storage
-func HashPassword(pw string) []byte {
-	password := []byte(pw)
-	// Hashing the password with the default cost should be ample
-	hashedPassword, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
-	if err != nil {
-		panic(err)
-	}
-	return hashedPassword
-}
-
-// VerifyPassword will verify ... wait for it ... a password matches a hash
-func VerifyPassword(pw string, hpw string) bool {
-	if err := bcrypt.CompareHashAndPassword([]byte(hpw), []byte(pw)); err != nil {
-		return false
-	}
-	return true
 
 }
 

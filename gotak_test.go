@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -676,4 +677,24 @@ func TestCapstoneStomping(t *testing.T) {
 		}
 	}
 
+}
+
+func TestDBPersistence(t *testing.T) {
+	testGame, _ := MakeGame(5)
+	testGame.IsBlackTurn = true
+	fmt.Printf("test game id: %v\n", testGame.GameID)
+	if err := StoreTakGame(testGame); err != nil {
+		fmt.Printf("storage problem: %v\n", err)
+	}
+	tg, _ := RetrieveTakGame(testGame.GameID)
+	fmt.Printf("Testgame: %T %v\n", tg, tg.GameBoard)
+	p := Placement{Coords: "b4", Piece: blackFlat}
+	if err := tg.PlacePiece(p); err != nil {
+		fmt.Printf("placement problem: %v\n", err)
+	}
+	if err := StoreTakGame(tg); err != nil {
+		fmt.Printf("placement problem: %v\n", err)
+	}
+	tg2, _ := RetrieveTakGame(tg.GameID)
+	fmt.Printf("Testgame 2: %T %v\n", tg2, tg2.GameBoard)
 }

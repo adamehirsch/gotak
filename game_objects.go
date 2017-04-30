@@ -114,6 +114,9 @@ func MakeGame(size int) (*TakGame, error) {
 		IsBlackTurn: (r.Intn(2) == 0),
 	}
 
+	if dbstoreErr := StoreTakGame(&newTakGame); dbstoreErr != nil {
+		return nil, dbstoreErr
+	}
 	gameIndex[newUUID] = &newTakGame
 
 	return &newTakGame, nil
