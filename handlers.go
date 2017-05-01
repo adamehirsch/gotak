@@ -16,6 +16,7 @@ import (
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go/request"
 	"github.com/gorilla/mux"
 
 	"github.com/satori/go.uuid"
@@ -38,14 +39,22 @@ func SlashHandler(w http.ResponseWriter, r *http.Request) {
 
 // NewGame will generate a new board with a specified size and return the UUID by which it will be known throughout its short, happy life.
 func NewGame(w http.ResponseWriter, r *http.Request) *WebError {
+	player, err := authUser(r)
+	if err != nil {
+		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+	}
+
 	vars := mux.Vars(r)
 
 	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
 		newGame, err := MakeGame(boardsize)
+		player.PlayedGames = append(player.PlayedGames, newGame.GameID)
+		StorePlayer(player)
+
 		if err != nil {
 			return &WebError{fmt.Errorf("could not create requested board size: %v", err), fmt.Sprintf("could not create requested board: %v", err), http.StatusInternalServerError}
-
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(newGame); err != nil {
@@ -87,7 +96,8 @@ func ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 	return nil
 }
 
-func ShowStackStops(w http.ResponseWriter, r *http.Request) *WebError {
+// ShowStackTops shows a top-down view of the specified game
+func ShowStackTops(w http.ResponseWriter, r *http.Request) *WebError {
 	// TODO: make sure only a user playing the game can see it... or maybe a setting on the game to make it public vs private?
 	// token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
 	// claims := token.Claims.(jwt.MapClaims)
@@ -100,14 +110,19 @@ func ShowStackStops(w http.ResponseWriter, r *http.Request) *WebError {
 			stackTops := requestedGame.DrawStackTops()
 			w.Write([]byte(stackTops))
 		} else {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "requested game '%v' not found.", gameID)
+			return &WebError{
+				fmt.Errorf("requested game '%v' not found", gameID),
+				fmt.Sprintf("requested game '%v' not found.", gameID),
+				http.StatusNotFound,
+			}
 		}
 
 	} else {
-		w.WriteHeader(http.StatusBadRequest)
-		fmt.Fprintf(w, "requested game ID '%v' not understood.", gameID)
-
+		return &WebError{
+			fmt.Errorf("requested game '%v' not understod", gameID),
+			fmt.Sprintf("requested game '%v' not understood.", gameID),
+			http.StatusBadRequest,
+		}
 	}
 	return nil
 }
@@ -116,6 +131,11 @@ func ShowStackStops(w http.ResponseWriter, r *http.Request) *WebError {
 Action will accept a JSON action for a particular game, determine whether it's a placement or movement, execute it if rules allow, and then return the updated grid.
 */
 func Action(w http.ResponseWriter, r *http.Request) *WebError {
+	// player := authUser(r)
+	// if player == "" {
+	// 	return &WebError{nil, "Problem with logged in player", http.StatusNotAcceptable}
+	// }
+
 	// get the gameID from the URL path
 	vars := mux.Vars(r)
 	gameID, err := uuid.FromString(vars["gameID"])
@@ -204,7 +224,7 @@ func Login(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	// look up the details
-	queryErr := db.QueryRow("SELECT username, hash FROM users WHERE username = ?", player.UserName).Scan(&name, &hash)
+	queryErr := db.QueryRow("SELECT username, hash FROM players WHERE username = ?", player.UserName).Scan(&name, &hash)
 
 	switch {
 	case queryErr == sql.ErrNoRows:
@@ -246,7 +266,7 @@ func Register(w http.ResponseWriter, r *http.Request) *WebError {
 	// check to see if the name conflicts in the DB
 	var matchName string
 
-	queryErr := db.QueryRow("SELECT username FROM users WHERE username = ?", player.UserName).Scan(&matchName)
+	queryErr := db.QueryRow("SELECT username FROM players WHERE username = ?", player.UserName).Scan(&matchName)
 	switch {
 	case queryErr == sql.ErrNoRows:
 		// that's what we want to see: no rows.
@@ -262,7 +282,7 @@ func Register(w http.ResponseWriter, r *http.Request) *WebError {
 	newPlayerID := uuid.NewV1()
 	newPlayerHash := HashPassword(player.Password)
 
-	stmt, _ := db.Prepare("INSERT INTO users(guid, username, hash) VALUES(?, ?, ?)")
+	stmt, _ := db.Prepare("INSERT INTO players(guid, username, hash) VALUES(?, ?, ?)")
 	_, err = stmt.Exec(newPlayerID, player.UserName, newPlayerHash)
 	if err != nil {
 		log.Fatal(err)
@@ -325,4 +345,17 @@ func VerifyPassword(pw string, hpw string) bool {
 	}
 	return true
 
+}
+
+func authUser(r *http.Request) (player *TakPlayer, err error) {
+	token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
+	claims := token.Claims.(jwt.MapClaims)
+	username, ok := claims["user"].(string)
+	if !ok {
+		return nil, fmt.Errorf("no such player found: %v", username)
+	}
+	if player, err = RetrievePlayerByName(username); err != nil {
+		return nil, err
+	}
+	return player, nil
 }

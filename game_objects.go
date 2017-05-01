@@ -42,10 +42,10 @@ type Stack struct {
 
 // TakPlayer describes a human player
 type TakPlayer struct {
-	Name         string       `json:"name"`
-	PlayerID     uuid.UUID    `json:"playerID"`
-	PlayedGames  []*uuid.UUID `json:"playedGames"`
-	PasswordHash []byte       `json:"-"`
+	Name         string      `json:"name"`
+	PlayerID     uuid.UUID   `json:"playerID"`
+	PlayedGames  []uuid.UUID `json:"playedGames"`
+	PasswordHash []byte      `json:"-"`
 }
 
 // PlayerCredentials is a struct used when people register a new player
@@ -69,8 +69,8 @@ type TakGame struct {
 	WinningPath []Coords      `json:"winningPath"`
 	StartTime   time.Time     `json:"startTime"`
 	WinTime     time.Time     `json:"winTime"`
-	BlackPlayer *TakPlayer    `json:"blackPlayerID"`
-	WhitePlayer *TakPlayer    `json:"whitePlayerID"`
+	BlackPlayer uuid.UUID     `json:"blackPlayerID"`
+	WhitePlayer uuid.UUID     `json:"whitePlayerID"`
 	Size        int           `json:"size"`
 	MoveCount   int           `json:"moveCount"`
 	TurnHistory []interface{} `json:"turnHistory"`
