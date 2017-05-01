@@ -25,8 +25,12 @@ func (tg *TakGame) PlacePiece(p Placement) error {
 	p.Piece.Color = strings.ToLower(p.Piece.Color)
 	x, y, _ := tg.TranslateCoords(p.Coords)
 	square := &tg.GameBoard[x][y]
-	// Place That Piece!
+	// Place That Piece! (top of the piece stacks is at position 0)
 	square.Pieces = append([]Piece{p.Piece}, square.Pieces...)
+
+	// Record the placemnt!
+	tg.TurnHistory = append(tg.TurnHistory, p)
+
 	if tg.IsBlackTurn == true {
 		tg.IsBlackTurn = false
 	} else {
@@ -98,6 +102,9 @@ func (tg *TakGame) MoveStack(m Movement) error {
 		carriedPieces = carriedPieces[:len(carriedPieces)-(DropCount)]
 
 	}
+
+	// record the move in the game's turn history
+	tg.TurnHistory = append(tg.TurnHistory, m)
 
 	if tg.IsBlackTurn == true {
 		tg.IsBlackTurn = false

@@ -56,23 +56,24 @@ type PlayerCredentials struct {
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
 type TakGame struct {
-	GameID      uuid.UUID  `json:"gameID"`
-	GameBoard   [][]Stack  `json:"gameBoard"`
-	IsBlackTurn bool       `json:"isBlackTurn"`
-	BlackWinner bool       `json:"blackWinner"`
-	WhiteWinner bool       `json:"whiteWinner"`
-	RoadWin     bool       `json:"roadWin"`
-	FlatWin     bool       `json:"flatWin"`
-	DrawGame    bool       `json:"drawGame"`
-	GameOver    bool       `json:"gameOver"`
-	GameWinner  uuid.UUID  `json:"gameWinner"`
-	WinningPath []Coords   `json:"winningPath"`
-	StartTime   time.Time  `json:"startTime"`
-	WinTime     time.Time  `json:"winTime"`
-	BlackPlayer *TakPlayer `json:"blackPlayerID"`
-	WhitePlayer *TakPlayer `json:"whitePlayerID"`
-	Size        int        `json:"size"`
-	MoveCount   int        `json:"moveCount"`
+	GameID      uuid.UUID     `json:"gameID"`
+	GameBoard   [][]Stack     `json:"gameBoard"`
+	IsBlackTurn bool          `json:"isBlackTurn"`
+	BlackWinner bool          `json:"blackWinner"`
+	WhiteWinner bool          `json:"whiteWinner"`
+	RoadWin     bool          `json:"roadWin"`
+	FlatWin     bool          `json:"flatWin"`
+	DrawGame    bool          `json:"drawGame"`
+	GameOver    bool          `json:"gameOver"`
+	GameWinner  uuid.UUID     `json:"gameWinner"`
+	WinningPath []Coords      `json:"winningPath"`
+	StartTime   time.Time     `json:"startTime"`
+	WinTime     time.Time     `json:"winTime"`
+	BlackPlayer *TakPlayer    `json:"blackPlayerID"`
+	WhitePlayer *TakPlayer    `json:"whitePlayerID"`
+	Size        int           `json:"size"`
+	MoveCount   int           `json:"moveCount"`
+	TurnHistory []interface{} `json:"turnHistory"`
 }
 
 // PieceLimits is a map of gridsize to piece limits per player
@@ -86,7 +87,7 @@ var PieceLimits = map[int]int{
 }
 
 // I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
-var gameIndex = make(map[uuid.UUID]*TakGame)
+// var gameIndex = make(map[uuid.UUID]*TakGame)
 
 // MakeGame takes an integer size and returns a &GameBoard
 func MakeGame(size int) (*TakGame, error) {
@@ -117,7 +118,7 @@ func MakeGame(size int) (*TakGame, error) {
 	if dbstoreErr := StoreTakGame(&newTakGame); dbstoreErr != nil {
 		return nil, dbstoreErr
 	}
-	gameIndex[newUUID] = &newTakGame
+	// gameIndex[newUUID] = &newTakGame
 
 	return &newTakGame, nil
 }

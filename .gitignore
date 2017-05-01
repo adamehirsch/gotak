@@ -5,4 +5,4 @@ conf.toml
 *.pem
 *.key
 gotak.db
-gotakdb.sqlite
+gotak

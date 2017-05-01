@@ -16,7 +16,6 @@ import (
 
 	jwtmiddleware "github.com/auth0/go-jwt-middleware"
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/dgrijalva/jwt-go/request"
 	"github.com/gorilla/mux"
 
 	"github.com/satori/go.uuid"
@@ -61,11 +60,9 @@ func NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 
 // ShowGame takes a given UUID, looks up the game (if it exists) and returns the current grid
 func ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
-	token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
-	claims := token.Claims.(jwt.MapClaims)
-	for k, v := range claims {
-		fmt.Printf("claim %s :\t%#v\n", k, v)
-	}
+	// TODO: make sure only a user playing the game can see it... or maybe a setting on the game to make it public vs private?
+	// token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
+	// claims := token.Claims.(jwt.MapClaims)
 
 	vars := mux.Vars(r)
 	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
@@ -77,6 +74,31 @@ func ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 				log.Println(err)
 			}
 
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprintf(w, "requested game '%v' not found.", gameID)
+		}
+
+	} else {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "requested game ID '%v' not understood.", gameID)
+
+	}
+	return nil
+}
+
+func ShowStackStops(w http.ResponseWriter, r *http.Request) *WebError {
+	// TODO: make sure only a user playing the game can see it... or maybe a setting on the game to make it public vs private?
+	// token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
+	// claims := token.Claims.(jwt.MapClaims)
+
+	vars := mux.Vars(r)
+	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
+
+		if requestedGame, err := RetrieveTakGame(gameID); err == nil {
+			w.WriteHeader(http.StatusOK)
+			stackTops := requestedGame.DrawStackTops()
+			w.Write([]byte(stackTops))
 		} else {
 			w.WriteHeader(http.StatusNotFound)
 			fmt.Fprintf(w, "requested game '%v' not found.", gameID)
@@ -114,8 +136,10 @@ func Action(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	// I am assuming there is a cleaner way to do this.
-	var placement Placement
-	var movement Movement
+	var (
+		placement Placement
+		movement  Movement
+	)
 
 	if vars["action"] == "place" {
 		if unmarshalError := json.Unmarshal(body, &placement); unmarshalError != nil {
@@ -146,6 +170,7 @@ func Action(w http.ResponseWriter, r *http.Request) *WebError {
 			return &WebError{err, fmt.Sprintf("%v: %v", movementErr, movement.Coords), 409}
 		}
 	}
+	// store the updated game back in the DB
 	if err = StoreTakGame(requestedGame); err != nil {
 		return &WebError{err, fmt.Sprintf("storage problem: %v", err), http.StatusInternalServerError}
 	}

@@ -2,11 +2,8 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
-
-	uuid "github.com/satori/go.uuid"
 )
 
 func TestBoardTooBig(t *testing.T) {
@@ -386,8 +383,6 @@ func TestPathSearch(t *testing.T) {
 
 func TestRoadWin(t *testing.T) {
 	whiteWin, _ := MakeGame(8)
-	whiteWin.GameID, _ = uuid.FromString("3fc74809-93eb-465d-a942-ef12427f83c5")
-	gameIndex[whiteWin.GameID] = whiteWin
 
 	// whiteWin.GameBoard[2][0] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
 	whiteWin.GameBoard[3][0] = Stack{[]Piece{whiteCap, whiteFlat, blackFlat}}
@@ -682,19 +677,16 @@ func TestCapstoneStomping(t *testing.T) {
 func TestDBPersistence(t *testing.T) {
 	testGame, _ := MakeGame(5)
 	testGame.IsBlackTurn = true
-	fmt.Printf("test game id: %v\n", testGame.GameID)
 	if err := StoreTakGame(testGame); err != nil {
-		fmt.Printf("storage problem: %v\n", err)
+		t.Errorf("storage problem: %v\n", err)
 	}
 	tg, _ := RetrieveTakGame(testGame.GameID)
-	fmt.Printf("Testgame: %T %v\n", tg, tg.GameBoard)
 	p := Placement{Coords: "b4", Piece: blackFlat}
 	if err := tg.PlacePiece(p); err != nil {
-		fmt.Printf("placement problem: %v\n", err)
+		t.Errorf("placement problem: %v\n", err)
 	}
 	if err := StoreTakGame(tg); err != nil {
-		fmt.Printf("placement problem: %v\n", err)
+		t.Errorf("re-storage problem: %v\n", err)
 	}
-	tg2, _ := RetrieveTakGame(tg.GameID)
-	fmt.Printf("Testgame 2: %T %v\n", tg2, tg2.GameBoard)
+	DeleteTakGame(tg.GameID)
 }

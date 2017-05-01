@@ -1,9 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/pprof"
 	"os"
 
 	authboss "gopkg.in/authboss.v1"
@@ -24,6 +26,7 @@ var (
 )
 
 func init() {
+
 	// read in the configuration file
 	viper.SetConfigName("conf")
 	viper.AddConfigPath(".")
@@ -50,11 +53,30 @@ func init() {
 
 }
 
+// gorilla mux requires some explicit steps to get pprof to attach to it
+func attachProfiler(router *mux.Router) {
+	router.HandleFunc("/debug/pprof/", pprof.Index)
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+	// Manually add support for paths linked to by index page at /debug/pprof/
+	router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+	router.Handle("/debug/pprof/block", pprof.Handler("block"))
+}
+
 func main() {
+	var debug = flag.Bool("debug", false, "debug mode")
+	flag.Parse()
 	defer db.Close()
 
 	r := mux.NewRouter()
 
+	if *debug {
+		attachProfiler(r)
+	}
 	checkedChain := alice.New(checkJWTsignature.Handler)
 
 	r.HandleFunc("/", SlashHandler)
@@ -65,8 +87,9 @@ func main() {
 	r.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(ShowGame)))
 	//
 	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(Action))).Methods("PUT")
+	r.Handle("/showtops/{gameID}", checkedChain.Then(errorHandler(ShowStackStops))).Methods("GET")
 
 	// Bind to a port and pass our router in, logging every request to Stdout
-	log.Fatal(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))
+	log.Println(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))
 
 }
