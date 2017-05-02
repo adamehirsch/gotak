@@ -10,6 +10,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -46,54 +47,82 @@ func NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	vars := mux.Vars(r)
+	var boardSize int
 
-	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
-		newGame, err := MakeGame(boardsize)
-		newGame.GameOwner = player.PlayerID
-
-		if err != nil {
-			return &WebError{fmt.Errorf("could not create requested board size: %v", err), fmt.Sprintf("could not create requested board: %v", err), http.StatusInternalServerError}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(newGame); err != nil {
-			log.Println(err)
-		}
-	} else {
-		w.WriteHeader(http.StatusUnprocessableEntity)
+	if boardSize, err = strconv.Atoi(vars["boardSize"]); err != nil {
 		return &WebError{fmt.Errorf("could not understand requested board size: %v", vars["boardSize"]), fmt.Sprintf("could not understand requested board size: %v", vars["boardSize"]), http.StatusBadRequest}
 	}
+
+	newGame, err := MakeGame(boardSize)
+	if err != nil {
+		return &WebError{fmt.Errorf("could not create requested board size: %v", err), fmt.Sprintf("could not create requested board: %v", err), http.StatusInternalServerError}
+	}
+
+	// optional URL parameter to indicate the game's open to anyone. Future use, I suspect.
+	isPublic, _ := regexp.MatchString("^(?i)true|yes$", r.FormValue("public"))
+
+	newGame.GameOwner = player.Name
+	newGame.IsPublic = isPublic
+	// stash the new game in the db
+	if err := StoreTakGame(newGame); err != nil {
+		return &WebError{errors.New("problem storing new game"), "problem storing new game", http.StatusInternalServerError}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(newGame); err != nil {
+		log.Println(err)
+	}
+
 	return nil
 }
 
 // ShowGame takes a given UUID, looks up the game (if it exists) and returns the current grid
 func ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
-	// TODO: make sure only a user playing the game can see it... or maybe a setting on the game to make it public vs private?
-	// token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
-	// claims := token.Claims.(jwt.MapClaims)
+	player, err := authUser(r)
+	if err != nil {
+		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+	}
 
 	vars := mux.Vars(r)
-	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
+	var (
+		gameID        uuid.UUID
+		requestedGame *TakGame
+	)
 
-		if requestedGame, err := RetrieveTakGame(gameID); err == nil {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			if err := json.NewEncoder(w).Encode(requestedGame); err != nil {
-				log.Println(err)
-			}
-
-		} else {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "requested game '%v' not found.", gameID)
-		}
-
-	} else {
+	if gameID, err = uuid.FromString(vars["gameID"]); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "requested game ID '%v' not understood.", gameID)
+	}
+	if requestedGame, err = RetrieveTakGame(gameID); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "requested game '%v' not found.", gameID)
+	}
+
+	if requestedGame.CanShow(player) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(requestedGame); err != nil {
+			log.Println(err)
+		}
+	} else {
+		return &WebError{errors.New("Not allowed to display game"), "Not allowed to display game", http.StatusForbidden}
 
 	}
+
 	return nil
+}
+
+// CanShow determines whether a given game can be shown to a given player
+func (tg *TakGame) CanShow(p *TakPlayer) bool {
+	switch {
+	case tg.IsPublic:
+		return true
+	case tg.BlackPlayer == p.Name || tg.WhitePlayer == p.Name || tg.GameOwner == p.Name:
+		return true
+	default:
+		return false
+	}
 }
 
 // ShowStackTops shows a top-down view of the specified game
@@ -318,21 +347,22 @@ func TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	switch {
-	case requestedGame.WhitePlayer == uuid.Nil && requestedGame.BlackPlayer == uuid.Nil:
+	case requestedGame.WhitePlayer == player.Name || requestedGame.BlackPlayer == player.Name:
+		return &WebError{errors.New("already seated at this game"), "already seated at this game", http.StatusConflict} // both seats are open
+	case requestedGame.WhitePlayer == "" && requestedGame.BlackPlayer == "":
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		if r.Intn(2) == 0 {
-			requestedGame.BlackPlayer = player.PlayerID
+			requestedGame.BlackPlayer = player.Name
 		} else {
-			requestedGame.WhitePlayer = player.PlayerID
+			requestedGame.WhitePlayer = player.Name
 		}
-	case requestedGame.WhitePlayer != uuid.Nil && requestedGame.BlackPlayer != uuid.Nil:
+		// both seats are occupied
+	case requestedGame.WhitePlayer != "" && requestedGame.BlackPlayer != "":
 		return &WebError{errors.New("both seats already taken"), "both seats already taken", http.StatusConflict}
-	case requestedGame.BlackPlayer == uuid.Nil && requestedGame.WhitePlayer != player.PlayerID:
-		requestedGame.BlackPlayer = player.PlayerID
-	case requestedGame.WhitePlayer == uuid.Nil && requestedGame.WhitePlayer != player.PlayerID:
-		requestedGame.WhitePlayer = player.PlayerID
-	case requestedGame.WhitePlayer == player.PlayerID || requestedGame.BlackPlayer == player.PlayerID:
-		return &WebError{errors.New("already seated at this game"), "already seated at this game", http.StatusConflict}
+	case requestedGame.BlackPlayer == "":
+		requestedGame.BlackPlayer = player.Name
+	case requestedGame.WhitePlayer == "":
+		requestedGame.WhitePlayer = player.Name
 	}
 	// store the updated game back in the DB
 	if err = StoreTakGame(requestedGame); err != nil {

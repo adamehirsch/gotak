@@ -66,13 +66,13 @@ type TakGame struct {
 	FlatWin     bool          `json:"flatWin"`
 	DrawGame    bool          `json:"drawGame"`
 	GameOver    bool          `json:"gameOver"`
-	GameWinner  uuid.UUID     `json:"gameWinner"`
+	GameWinner  string        `json:"gameWinner"`
 	WinningPath []Coords      `json:"winningPath"`
 	StartTime   time.Time     `json:"startTime"`
 	WinTime     time.Time     `json:"winTime"`
-	BlackPlayer uuid.UUID     `json:"blackPlayerID"`
-	WhitePlayer uuid.UUID     `json:"whitePlayerID"`
-	GameOwner   uuid.UUID     `json:"gameOwner"`
+	BlackPlayer string        `json:"blackPlayer"`
+	WhitePlayer string        `json:"whitePlayer"`
+	GameOwner   string        `json:"gameOwner"`
 	IsPublic    bool          `json:"isPublic"`
 	HasStarted  bool          `json:"hasStarted"`
 	Size        int           `json:"size"`
