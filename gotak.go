@@ -85,6 +85,7 @@ func main() {
 
 	r.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(NewGame)))
 	r.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(ShowGame)))
+	r.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(TakeSeat)))
 	//
 	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(Action))).Methods("PUT")
 	r.Handle("/showtops/{gameID}", checkedChain.Then(errorHandler(ShowStackTops))).Methods("GET")

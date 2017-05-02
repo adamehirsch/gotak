@@ -50,8 +50,9 @@ type TakPlayer struct {
 
 // PlayerCredentials is a struct used when people register a new player
 type PlayerCredentials struct {
-	UserName string `json:"username"`
-	Password string `json:"password"`
+	UserName string    `json:"username"`
+	Password string    `json:"password"`
+	PlayerID uuid.UUID `json:"playerId"`
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
@@ -71,6 +72,9 @@ type TakGame struct {
 	WinTime     time.Time     `json:"winTime"`
 	BlackPlayer uuid.UUID     `json:"blackPlayerID"`
 	WhitePlayer uuid.UUID     `json:"whitePlayerID"`
+	GameOwner   uuid.UUID     `json:"gameOwner"`
+	IsPublic    bool          `json:"isPublic"`
+	HasStarted  bool          `json:"hasStarted"`
 	Size        int           `json:"size"`
 	MoveCount   int           `json:"moveCount"`
 	TurnHistory []interface{} `json:"turnHistory"`
@@ -97,7 +101,7 @@ func MakeGame(size int) (*TakGame, error) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	// each board gets a guid
-	newUUID := uuid.NewV1()
+	newUUID := uuid.NewV4()
 	// first make the rows...
 	newGameBoard := make([][]Stack, size, size)
 

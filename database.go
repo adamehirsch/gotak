@@ -27,7 +27,7 @@ func InitDB(dataSourceName string) error {
 	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS players (guid BLOB(16) PRIMARY KEY, username VARCHAR UNIQUE NOT NULL, hash VARCHAR, playedgames VARCHAR)"); err != nil {
 		return err
 	}
-	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS games (guid BLOB(16) PRIMARY KEY UNIQUE, gameBlob VARCHAR)"); err != nil {
+	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS games (guid BLOB(16) PRIMARY KEY UNIQUE, isOver BOOL, isPublic BOOL, hasStarted BOOL, gameBlob VARCHAR)"); err != nil {
 		return err
 	}
 	return nil
@@ -38,8 +38,8 @@ func StoreTakGame(tg *TakGame) error {
 	textGame, _ := json.Marshal(tg)
 	// this clever little two step handles INSERT OR UPDATE in sqlite3 so that one can store an existing game and have it update the row in the db
 	// http://stackoverflow.com/questions/15277373/sqlite-upsert-update-or-insert
-	db.Exec("UPDATE games SET guid=?, gameBlob=? WHERE guid=?", tg.GameID, textGame, tg.GameID)
-	_, err := db.Exec("INSERT INTO games(guid, gameBlob) SELECT ?, ? WHERE (SELECT CHANGES() = 0)", tg.GameID, textGame)
+	db.Exec("UPDATE games SET guid=?, isOver=?, isPublic=?, hasStarted=?, gameBlob=? WHERE guid=?", tg.GameID, tg.GameOver, tg.IsPublic, tg.HasStarted, textGame, tg.GameID)
+	_, err := db.Exec("INSERT INTO games(guid, isOver, isPublic, hasStarted, gameBlob) SELECT ?, ?, ?, ?, ? WHERE (SELECT CHANGES() = 0)", tg.GameID, tg.GameOver, tg.IsPublic, tg.HasStarted, textGame)
 
 	if err != nil {
 		return err
@@ -67,9 +67,10 @@ func RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
 
 // StorePlayer puts a given player into the database
 func StorePlayer(p *TakPlayer) error {
+	pg, _ := json.Marshal(p.PlayedGames)
+
 	// this clever little two step handles INSERT OR UPDATE in sqlite3 so that one can store an existing player or have it update an existing one
 	// http://stackoverflow.com/questions/15277373/sqlite-upsert-update-or-insert
-	pg, _ := json.Marshal(p.PlayedGames)
 
 	db.Exec("UPDATE players SET guid=?, username=?, hash=?, playedGames=? WHERE guid=?", p.PlayerID, p.Name, p.PasswordHash, pg, p.PlayerID)
 	_, err := db.Exec("INSERT INTO players(guid, username, hash, playedGames) SELECT ?, ?, ?, ? WHERE (SELECT CHANGES() = 0)", p.PlayerID, p.Name, p.PasswordHash, pg)
@@ -80,44 +81,12 @@ func StorePlayer(p *TakPlayer) error {
 	return nil
 }
 
-// Storing and retrieving NULL values from a SQL db can be annoying.
-// https://marcesher.com/2014/10/13/go-working-effectively-with-database-nulls/
-type nullablePlayedGames struct {
-	PlayedGames []uuid.UUID `json:"playedGames"`
-}
-
-// RetrievePlayer gets a player from the db
-func RetrievePlayer(id uuid.UUID) (*TakPlayer, error) {
-	var (
-		player      TakPlayer
-		playedGames sql.NullString
-		npg         nullablePlayedGames
-	)
-	queryErr := db.QueryRow("SELECT * from players WHERE guid = ?", id).Scan(&player.PlayerID, &player.Name, &player.PasswordHash, &playedGames)
-
-	switch {
-	case queryErr == sql.ErrNoRows:
-		return nil, errors.New("No such player found")
-	case queryErr != nil:
-		// problem with running the query? Yell.
-		log.Fatal(queryErr)
-	}
-	if playedGames.String != "" {
-		if unmarshalError := json.Unmarshal([]byte(playedGames.String), &npg.PlayedGames); unmarshalError != nil {
-			return nil, fmt.Errorf("problem decoding played games: %v", playedGames.String)
-		}
-		player.PlayedGames = npg.PlayedGames
-
-	}
-	return &player, nil
-}
-
 // RetrievePlayerByName gets a player from the db
 func RetrievePlayerByName(name string) (*TakPlayer, error) {
 	var (
 		player      TakPlayer
 		playedGames sql.NullString
-		npg         nullablePlayedGames
+		npg         []uuid.UUID
 	)
 
 	queryErr := db.QueryRow("SELECT * from players WHERE username = ?", name).Scan(&player.PlayerID, &player.Name, &player.PasswordHash, &playedGames)
@@ -129,11 +98,13 @@ func RetrievePlayerByName(name string) (*TakPlayer, error) {
 		// problem with running the query? Yell.
 		log.Fatal(queryErr)
 	}
+
+	// json.Unmarshal did unexpected things when presented with an empty column. workaround.
 	if playedGames.String != "" {
-		if unmarshalError := json.Unmarshal([]byte(playedGames.String), &npg.PlayedGames); unmarshalError != nil {
+		if unmarshalError := json.Unmarshal([]byte(playedGames.String), &npg); unmarshalError != nil {
 			return nil, fmt.Errorf("problem decoding played games: %v", playedGames.String)
 		}
-		player.PlayedGames = npg.PlayedGames
+		player.PlayedGames = npg
 
 	}
 	return &player, nil
@@ -150,7 +121,6 @@ func DeleteTakGame(id uuid.UUID) error {
 		// problem with running the query? Yell.
 		return err
 	default:
-		// fmt.Printf("Deleted game: %v\n", id)
 		return nil
 	}
 

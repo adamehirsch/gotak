@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"strconv"
 	"time"
@@ -48,8 +49,7 @@ func NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 
 	if boardsize, err := strconv.Atoi(vars["boardSize"]); err == nil {
 		newGame, err := MakeGame(boardsize)
-		player.PlayedGames = append(player.PlayedGames, newGame.GameID)
-		StorePlayer(player)
+		newGame.GameOwner = player.PlayerID
 
 		if err != nil {
 			return &WebError{fmt.Errorf("could not create requested board size: %v", err), fmt.Sprintf("could not create requested board: %v", err), http.StatusInternalServerError}
@@ -206,6 +206,7 @@ func Login(w http.ResponseWriter, r *http.Request) *WebError {
 	var (
 		player PlayerCredentials
 		name   string
+		id     string
 		hash   string
 	)
 	// read in only up to 1MB of data from the client. Come on, now.
@@ -224,7 +225,7 @@ func Login(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	// look up the details
-	queryErr := db.QueryRow("SELECT username, hash FROM players WHERE username = ?", player.UserName).Scan(&name, &hash)
+	queryErr := db.QueryRow("SELECT guid, username, hash FROM players WHERE username = ?", player.UserName).Scan(&id, &name, &hash)
 
 	switch {
 	case queryErr == sql.ErrNoRows:
@@ -246,7 +247,7 @@ func Login(w http.ResponseWriter, r *http.Request) *WebError {
 
 // Register handles new players
 func Register(w http.ResponseWriter, r *http.Request) *WebError {
-	var player PlayerCredentials
+	var newPlayer PlayerCredentials
 
 	// read in only up to 1MB of data from the client. Come on, now.
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
@@ -254,19 +255,19 @@ func Register(w http.ResponseWriter, r *http.Request) *WebError {
 		log.Println(err)
 	}
 
-	if unmarshalError := json.Unmarshal(body, &player); unmarshalError != nil {
+	if unmarshalError := json.Unmarshal(body, &newPlayer); unmarshalError != nil {
 		return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
 	}
 
 	// json.Unmarshal will sometimes parse valid but inapplicable JSON into an empty struct. Catch that.
-	if player.UserName == "" || player.Password == "" {
+	if newPlayer.UserName == "" || newPlayer.Password == "" {
 		return &WebError{errors.New("Missing new player username or password"), "Missing new player username or password", http.StatusUnprocessableEntity}
 	}
 
 	// check to see if the name conflicts in the DB
 	var matchName string
 
-	queryErr := db.QueryRow("SELECT username FROM players WHERE username = ?", player.UserName).Scan(&matchName)
+	queryErr := db.QueryRow("SELECT username FROM players WHERE username = ?", newPlayer.UserName).Scan(&matchName)
 	switch {
 	case queryErr == sql.ErrNoRows:
 		// that's what we want to see: no rows.
@@ -279,21 +280,69 @@ func Register(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	// every player gets a unique uuid
-	newPlayerID := uuid.NewV1()
-	newPlayerHash := HashPassword(player.Password)
+	newPlayer.PlayerID = uuid.NewV4()
+	newPlayerHash := HashPassword(newPlayer.Password)
 
 	stmt, _ := db.Prepare("INSERT INTO players(guid, username, hash) VALUES(?, ?, ?)")
-	_, err = stmt.Exec(newPlayerID, player.UserName, newPlayerHash)
+	_, err = stmt.Exec(newPlayer.PlayerID, newPlayer.UserName, newPlayerHash)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tokenBytes := generateJWT(player, "new player successfully created")
+	tokenBytes := generateJWT(newPlayer, "new player successfully created")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write(tokenBytes)
 	return nil
 
+}
+
+// TakeSeat gives an open seat in a game to a requesting player
+func TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
+	player, err := authUser(r)
+	if err != nil {
+		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+	}
+
+	// get the gameID from the URL path
+	vars := mux.Vars(r)
+	gameID, err := uuid.FromString(vars["gameID"])
+	if err != nil {
+		return &WebError{err, "Problem with game ID", http.StatusNotAcceptable}
+	}
+
+	// fetch out and validate that we've got a game by that ID
+	requestedGame, err := RetrieveTakGame(gameID)
+	if err != nil {
+		return &WebError{err, "No such game found", http.StatusNotFound}
+	}
+
+	switch {
+	case requestedGame.WhitePlayer == uuid.Nil && requestedGame.BlackPlayer == uuid.Nil:
+		r := rand.New(rand.NewSource(time.Now().UnixNano()))
+		if r.Intn(2) == 0 {
+			requestedGame.BlackPlayer = player.PlayerID
+		} else {
+			requestedGame.WhitePlayer = player.PlayerID
+		}
+	case requestedGame.WhitePlayer != uuid.Nil && requestedGame.BlackPlayer != uuid.Nil:
+		return &WebError{errors.New("both seats already taken"), "both seats already taken", http.StatusConflict}
+	case requestedGame.BlackPlayer == uuid.Nil && requestedGame.WhitePlayer != player.PlayerID:
+		requestedGame.BlackPlayer = player.PlayerID
+	case requestedGame.WhitePlayer == uuid.Nil && requestedGame.WhitePlayer != player.PlayerID:
+		requestedGame.WhitePlayer = player.PlayerID
+	case requestedGame.WhitePlayer == player.PlayerID || requestedGame.BlackPlayer == player.PlayerID:
+		return &WebError{errors.New("already seated at this game"), "already seated at this game", http.StatusConflict}
+	}
+	// store the updated game back in the DB
+	if err = StoreTakGame(requestedGame); err != nil {
+		return &WebError{err, fmt.Sprintf("storage problem: %v", err), http.StatusInternalServerError}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	gamePayload, _ := json.Marshal(requestedGame)
+	w.Write([]byte(gamePayload))
+	return nil
 }
 
 // checkJWTsignature will check a given token and verify that it was signed with the key and method specified below before passing access to its referenced Handler
@@ -315,6 +364,7 @@ func generateJWT(p PlayerCredentials, m string) []byte {
 	claims := token.Claims.(jwt.MapClaims)
 
 	claims["user"] = p.UserName
+	claims["id"] = p.PlayerID
 	claims["exp"] = time.Now().Add(time.Hour * 24 * time.Duration(loginDays)).Unix()
 
 	// sign the token

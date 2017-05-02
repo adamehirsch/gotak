@@ -15,6 +15,7 @@ func TestBoardTooBig(t *testing.T) {
 
 func TestBoardSizeLimits(t *testing.T) {
 	testBoard, _ := MakeGame(5)
+
 	// a5
 	testBoard.GameBoard[0][4] = Stack{[]Piece{whiteWall, blackFlat}}
 	// c1
