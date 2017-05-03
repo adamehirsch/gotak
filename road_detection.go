@@ -163,7 +163,7 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string, pp []Coords) b
 }
 
 // DrawStackTops draws a board with the winning path, if any, highlighted
-func (tg *TakGame) DrawStackTops() string {
+func (tg *TakGame) DrawStackTops() []string {
 
 	boardSize := tg.Size
 	printablePath := make([][]string, boardSize)
@@ -174,17 +174,14 @@ func (tg *TakGame) DrawStackTops() string {
 	for _, v := range tg.WinningPath {
 		printablePath[v.X][v.Y] = "o"
 	}
-
-	printableBoard := " " + strings.Repeat("---", boardSize) + "\n"
-	// fmt.Println(" " + strings.Repeat("---", boardSize))
+	printableBoard := make([]string, boardSize+2)
+	printableBoard[0] = " " + strings.Repeat("---", boardSize)
 	// print the board from the top down
 	for y := boardSize - 1; y >= 0; y-- {
-		// fmt.Print("|")
-		printableBoard = printableBoard + "|"
+		line := "|"
 		for x := 0; x < boardSize; x++ {
 			if len(tg.GameBoard[x][y].Pieces) == 0 {
-				// fmt.Print(" . ")
-				printableBoard = printableBoard + " . "
+				line = line + " . "
 			} else {
 				highlightOpen := " "
 				highlightClose := " "
@@ -196,15 +193,12 @@ func (tg *TakGame) DrawStackTops() string {
 				if tg.GameBoard[x][y].Pieces[0].Color == White {
 					stackTop = "W"
 				}
-				fmt.Printf("%s%s%s", highlightOpen, stackTop, highlightClose)
-				printableBoard = printableBoard + fmt.Sprintf("%s%s%s", highlightOpen, stackTop, highlightClose)
+				line = line + fmt.Sprintf("%s%s%s", highlightOpen, stackTop, highlightClose)
 			}
 		}
-		fmt.Print("|\n")
-		printableBoard = printableBoard + "|\n"
+		line = line + "|"
+		printableBoard[boardSize-y] = line
 	}
-	fmt.Println(" " + strings.Repeat("---", boardSize))
-	printableBoard = printableBoard + " " + strings.Repeat("---", boardSize) + "\n"
-	fmt.Print(printableBoard)
+	printableBoard[boardSize+1] = " " + strings.Repeat("---", boardSize)
 	return printableBoard
 }

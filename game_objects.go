@@ -177,3 +177,8 @@ type TakJWT struct {
 	JWT     string `json:"jwt"`
 	Message string `json:"message"`
 }
+
+// StackTops is a simple string to display a top-down view of the game (mostly useful for debugging)
+type StackTops struct {
+	TopView []string `json:"topView"`
+}

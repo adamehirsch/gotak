@@ -88,7 +88,7 @@ func main() {
 	r.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(TakeSeat)))
 	//
 	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(Action))).Methods("PUT")
-	r.Handle("/showtops/{gameID}", checkedChain.Then(errorHandler(ShowStackTops))).Methods("GET")
+	// r.Handle("/showtops/{gameID}", checkedChain.Then(errorHandler(ShowStackTops))).Methods("GET")
 
 	// Bind to a port and pass our router in, logging every request to Stdout
 	log.Println(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))

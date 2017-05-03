@@ -46,6 +46,7 @@ func NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
 	}
 
+	// pull the boardSize out of the URL itself, e.g. /newgame/4, /newgame/6
 	vars := mux.Vars(r)
 	var boardSize int
 
@@ -100,70 +101,32 @@ func ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 	}
 
 	if requestedGame.CanShow(player) {
+		// optional URL parameter to just show the stack tops.
+		showTops, _ := regexp.MatchString("^(?i)true|yes$", r.FormValue("showtops"))
+		var gamePayload []byte
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		if err := json.NewEncoder(w).Encode(requestedGame); err != nil {
-			log.Println(err)
+		if showTops {
+			topView := requestedGame.DrawStackTops()
+			gamePayload, _ = json.Marshal(topView)
+		} else {
+			gamePayload, _ = json.Marshal(requestedGame)
 		}
+		w.Write([]byte(gamePayload))
 	} else {
 		return &WebError{errors.New("Not allowed to display game"), "Not allowed to display game", http.StatusForbidden}
-
 	}
 
 	return nil
 }
 
-// CanShow determines whether a given game can be shown to a given player
-func (tg *TakGame) CanShow(p *TakPlayer) bool {
-	switch {
-	case tg.IsPublic:
-		return true
-	case tg.BlackPlayer == p.Name || tg.WhitePlayer == p.Name || tg.GameOwner == p.Name:
-		return true
-	default:
-		return false
-	}
-}
-
-// ShowStackTops shows a top-down view of the specified game
-func ShowStackTops(w http.ResponseWriter, r *http.Request) *WebError {
-	// TODO: make sure only a user playing the game can see it... or maybe a setting on the game to make it public vs private?
-	// token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
-	// claims := token.Claims.(jwt.MapClaims)
-
-	vars := mux.Vars(r)
-	if gameID, err := uuid.FromString(vars["gameID"]); err == nil {
-
-		if requestedGame, err := RetrieveTakGame(gameID); err == nil {
-			w.WriteHeader(http.StatusOK)
-			stackTops := requestedGame.DrawStackTops()
-			w.Write([]byte(stackTops))
-		} else {
-			return &WebError{
-				fmt.Errorf("requested game '%v' not found", gameID),
-				fmt.Sprintf("requested game '%v' not found.", gameID),
-				http.StatusNotFound,
-			}
-		}
-
-	} else {
-		return &WebError{
-			fmt.Errorf("requested game '%v' not understod", gameID),
-			fmt.Sprintf("requested game '%v' not understood.", gameID),
-			http.StatusBadRequest,
-		}
-	}
-	return nil
-}
-
-/*
-Action will accept a JSON action for a particular game, determine whether it's a placement or movement, execute it if rules allow, and then return the updated grid.
-*/
+// Action will accept a JSON action for a particular game, determine whether it's a placement or movement, execute it if rules allow, and then return the updated grid.
 func Action(w http.ResponseWriter, r *http.Request) *WebError {
-	// player := authUser(r)
-	// if player == "" {
-	// 	return &WebError{nil, "Problem with logged in player", http.StatusNotAcceptable}
-	// }
+	player, err := authUser(r)
+	if err != nil {
+		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+	}
 
 	// get the gameID from the URL path
 	vars := mux.Vars(r)
@@ -178,13 +141,16 @@ func Action(w http.ResponseWriter, r *http.Request) *WebError {
 		return &WebError{err, "No such game found", http.StatusNotFound}
 	}
 
+	if !requestedGame.PlayersTurn(player) {
+		return &WebError{errors.New("Not your turn"), "Not this players turn", http.StatusBadRequest}
+	}
+
 	// read in only up to 1MB of data from the client. Come on, now.
 	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1048576))
 	if err != nil {
 		log.Println(err)
 	}
 
-	// I am assuming there is a cleaner way to do this.
 	var (
 		placement Placement
 		movement  Movement
@@ -350,6 +316,7 @@ func TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
 	case requestedGame.WhitePlayer == player.Name || requestedGame.BlackPlayer == player.Name:
 		return &WebError{errors.New("already seated at this game"), "already seated at this game", http.StatusConflict} // both seats are open
 	case requestedGame.WhitePlayer == "" && requestedGame.BlackPlayer == "":
+		// flip a coin to see which of the open seats you get.
 		r := rand.New(rand.NewSource(time.Now().UnixNano()))
 		if r.Intn(2) == 0 {
 			requestedGame.BlackPlayer = player.Name
@@ -394,7 +361,6 @@ func generateJWT(p PlayerCredentials, m string) []byte {
 	claims := token.Claims.(jwt.MapClaims)
 
 	claims["user"] = p.UserName
-	claims["id"] = p.PlayerID
 	claims["exp"] = time.Now().Add(time.Hour * 24 * time.Duration(loginDays)).Unix()
 
 	// sign the token
@@ -418,7 +384,7 @@ func HashPassword(pw string) []byte {
 	return hashedPassword
 }
 
-// VerifyPassword will verify ... wait for it ... a password matches a hash
+// VerifyPassword will verify ... wait for it ... that a password matches a hash
 func VerifyPassword(pw string, hpw string) bool {
 	if err := bcrypt.CompareHashAndPassword([]byte(hpw), []byte(pw)); err != nil {
 		return false
@@ -427,6 +393,7 @@ func VerifyPassword(pw string, hpw string) bool {
 
 }
 
+// authUser parses the username out of the JWT token and returns it to whoever's asking
 func authUser(r *http.Request) (player *TakPlayer, err error) {
 	token, _ := request.ParseFromRequest(r, request.AuthorizationHeaderExtractor, jwtKeyFn)
 	claims := token.Claims.(jwt.MapClaims)
@@ -438,4 +405,28 @@ func authUser(r *http.Request) (player *TakPlayer, err error) {
 		return nil, err
 	}
 	return player, nil
+}
+
+// CanShow determines whether a given game can be shown to a given player
+func (tg *TakGame) CanShow(p *TakPlayer) bool {
+	switch {
+	case tg.IsPublic:
+		return true
+	case tg.BlackPlayer == p.Name || tg.WhitePlayer == p.Name || tg.GameOwner == p.Name:
+		return true
+	default:
+		return false
+	}
+}
+
+// PlayersTurn determines whether a given player can make the next move
+func (tg *TakGame) PlayersTurn(p *TakPlayer) bool {
+	switch {
+	case tg.BlackPlayer == p.Name && tg.IsBlackTurn == true:
+		return true
+	case tg.WhitePlayer == p.Name && tg.IsBlackTurn == false:
+		return true
+	default:
+		return false
+	}
 }
