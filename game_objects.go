@@ -27,32 +27,29 @@ type Piece struct {
 	Orientation string `json:"orientation"`
 }
 
-var whiteFlat = Piece{"white", "flat"}
-var blackFlat = Piece{"black", "flat"}
-var whiteCap = Piece{"white", "capstone"}
-var blackCap = Piece{"black", "capstone"}
-var whiteWall = Piece{"white", "wall"}
-var blackWall = Piece{"black", "wall"}
+var (
+	whiteFlat = Piece{"white", "flat"}
+	blackFlat = Piece{"black", "flat"}
+	whiteCap  = Piece{"white", "capstone"}
+	blackCap  = Piece{"black", "capstone"}
+	whiteWall = Piece{"white", "wall"}
+	blackWall = Piece{"black", "wall"}
+)
 
 // Stack is just a slice of Pieces.
 type Stack struct {
-	// Note: the "top" of the stack is at [0]
+	// Note: the "top" of the stack, for game purposes, is at [0]
 	Pieces []Piece
 }
 
 // TakPlayer describes a human player
 type TakPlayer struct {
-	Name         string      `json:"name"`
+	Username     string      `json:"username"`
 	PlayerID     uuid.UUID   `json:"playerID"`
 	PlayedGames  []uuid.UUID `json:"playedGames"`
-	PasswordHash []byte      `json:"-"`
-}
-
-// PlayerCredentials is a struct used when people register a new player
-type PlayerCredentials struct {
-	UserName string    `json:"username"`
-	Password string    `json:"password"`
-	PlayerID uuid.UUID `json:"playerId"`
+	passwordHash []byte
+	// I don't like having to have the password exported. TODO: is this actually a problem? Password is explicitly not saved in the db store
+	Password string
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
@@ -118,11 +115,6 @@ func MakeGame(size int) (*TakGame, error) {
 		// randomly select a first player with a bool
 		IsBlackTurn: (r.Intn(2) == 0),
 	}
-
-	if dbstoreErr := StoreTakGame(&newTakGame); dbstoreErr != nil {
-		return nil, dbstoreErr
-	}
-	// gameIndex[newUUID] = &newTakGame
 
 	return &newTakGame, nil
 }

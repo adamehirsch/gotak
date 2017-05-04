@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
@@ -462,32 +463,19 @@ func (tg *TakGame) ValidMoveDirection(m Movement) error {
 
 // IsGameOver detects whether the given game is over
 func (tg *TakGame) IsGameOver() bool {
-	// boardSize := len(tg.GameBoard)
-	// _, totalPlacedPieces := tg.CountAllPlacedPieces()
-	// if totalPlacedPieces[Black] >= PieceLimits[boardSize] {
-	// 	tg.GameOver = true
-	// 	return true
-	// } else if totalPlacedPieces[White] >= PieceLimits[boardSize] {
-	// 	tg.GameOver = true
-	// 	return true
-	// }
 	pieceLimitReached, _ := tg.HitPieceLimit()
+	gameOver := false
 
-	if pieceLimitReached {
-		tg.GameOver = true
-		return true
-	}
-	if tg.IsFlatWin() {
-		tg.GameOver = true
-		return true
+	if pieceLimitReached || tg.IsFlatWin() || tg.IsRoadWin(Black) || tg.IsRoadWin(White) {
+		gameOver = true
 	}
 
-	if tg.IsRoadWin(Black) || tg.IsRoadWin(White) {
-		tg.GameOver = true
-		return true
-	}
+	tg.GameOver = gameOver
 
-	return false
+	if gameOver && tg.WinTime.IsZero() {
+		tg.WinTime = time.Now()
+	}
+	return gameOver
 }
 
 // IsFlatWin determines if there's been a flat win, i.e. board has no empty spaces

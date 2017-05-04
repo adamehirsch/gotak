@@ -1,10 +1,50 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
+
+	log "github.com/Sirupsen/logrus"
+
+	jwt "github.com/dgrijalva/jwt-go"
+
+	uuid "github.com/satori/go.uuid"
 )
+
+func init() {
+	log.SetOutput(ioutil.Discard)
+}
+
+// this mockDB satisies the "Datastore" interface by having the methods below
+type mockDB struct {
+	takgame    TakGame
+	playerid   uuid.UUID
+	takplayer  TakPlayer
+	playername string
+}
+
+func (mdb *mockDB) StoreTakGame(tg *TakGame) error {
+	return nil
+}
+func (mdb *mockDB) RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
+	return &mdb.takgame, nil
+}
+func (mdb *mockDB) StorePlayer(p *TakPlayer) error {
+	return nil
+}
+func (mdb *mockDB) RetrievePlayer(name string) (*TakPlayer, error) {
+	return &mdb.takplayer, nil
+}
+
+func (mdb *mockDB) PlayerExists(n string) bool {
+	return mdb.playername == n
+}
 
 func TestBoardTooBig(t *testing.T) {
 	testBoard, err := MakeGame(23)
@@ -675,19 +715,78 @@ func TestCapstoneStomping(t *testing.T) {
 
 }
 
-func TestDBPersistence(t *testing.T) {
-	testGame, _ := MakeGame(5)
-	testGame.IsBlackTurn = true
-	if err := StoreTakGame(testGame); err != nil {
-		t.Errorf("storage problem: %v\n", err)
+func TestLoginHandler(t *testing.T) {
+
+	testPlayer := TakPlayer{
+		Username: "testPlayer",
+		// password is "foobar"
+		passwordHash: []byte("$2a$10$egXKY.SPgXWMkOUIFPC2JOPnWbaTLl3W2Vp5f9xZW9W1pktAPxCE2"),
 	}
-	tg, _ := RetrieveTakGame(testGame.GameID)
-	p := Placement{Coords: "b4", Piece: blackFlat}
-	if err := tg.PlacePiece(p); err != nil {
-		t.Errorf("placement problem: %v\n", err)
+
+	env := DBenv{db: &mockDB{
+		playername: "testPlayer",
+		takplayer:  testPlayer,
+	}}
+
+	testCases := []struct {
+		credentials []byte
+		code        int
+		message     string
+	}{
+		{
+			credentials: []byte(`{"username": "testPlayer","password": "foobar"}`),
+			code:        200,
+			message:     "successfully logged in",
+		},
+		{
+			credentials: []byte(`{"username": "testPlayer","password": "wrongbar"}`),
+			code:        400,
+			message:     "incorrect password\n",
+		},
+		{
+			credentials: []byte(`{"username": "wrongPlayer","password": "wrongbar"}`),
+			code:        422,
+			message:     "No player named 'wrongPlayer' found\n",
+		},
+		{
+			credentials: []byte(`{"username": "","password": "wrongbar"}`),
+			code:        422,
+			message:     "Missing player username or password\n",
+		},
 	}
-	if err := StoreTakGame(tg); err != nil {
-		t.Errorf("re-storage problem: %v\n", err)
+
+	for _, c := range testCases {
+		rec := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/login", bytes.NewBuffer(c.credentials))
+		errorHandler(env.Login).ServeHTTP(rec, req)
+		resp := rec.Result()
+		body, _ := ioutil.ReadAll(resp.Body)
+
+		if resp.StatusCode != c.code {
+			t.Errorf("wanted return code %v, got %v", c.code, resp.StatusCode)
+		}
+		if isJSON(string(body)) {
+			loginResp := TakJWT{}
+			json.Unmarshal(body, &loginResp)
+			if loginResp.Message != c.message {
+				t.Errorf("wanted return message '%v', got '%v'", c.message, loginResp.Message)
+			}
+			tokenString := loginResp.JWT
+			token, _ := jwt.Parse(tokenString, jwtKeyFn)
+			if !token.Valid {
+				t.Error("invalid JWT token")
+
+			}
+		} else {
+			if string(body) != c.message {
+				t.Errorf("wanted return body '%v', got '%v'", c.message, string(body))
+			}
+		}
+
 	}
-	DeleteTakGame(tg.GameID)
+}
+
+func isJSON(s string) bool {
+	var js map[string]interface{}
+	return json.Unmarshal([]byte(s), &js) == nil
 }

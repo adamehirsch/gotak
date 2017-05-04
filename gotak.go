@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/pprof"
 	"os"
+
+	log "github.com/Sirupsen/logrus"
 
 	authboss "gopkg.in/authboss.v1"
 
@@ -48,8 +49,52 @@ func init() {
 		panic(fmt.Sprintf("can't read SSL cert %v: %v", sslCert, err))
 	}
 
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	log.SetOutput(os.Stdout)
+
+	// Only log the warning severity or above.
+	log.SetLevel(log.DebugLevel)
+}
+
+// DBenv contains only a Datastore interface, which defines all the methods that deal with the database.
+type DBenv struct {
+	db Datastore
+}
+
+func main() {
+
 	// ensure the database is setup
-	InitDB(viper.GetString("production.dbname"))
+	db, err := InitSQLiteDB(viper.GetString("production.dbname"))
+	if err != nil {
+		log.Panicf("problem initializing db connection: %v", err)
+	}
+
+	env := &DBenv{db}
+
+	var debug = flag.Bool("debug", false, "debug mode")
+	flag.Parse()
+	defer db.Close()
+
+	r := mux.NewRouter()
+
+	if *debug {
+		attachProfiler(r)
+	}
+	checkedChain := alice.New(checkJWTsignature.Handler)
+
+	r.HandleFunc("/", SlashHandler)
+	r.Handle("/login", errorHandler(env.Login)).Methods("POST")
+	r.Handle("/register", errorHandler(env.Register)).Methods("POST")
+
+	r.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(env.NewGame)))
+	r.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(env.ShowGame)))
+	r.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(env.TakeSeat)))
+	//
+	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(env.Action))).Methods("PUT")
+
+	// Bind to a port and pass our router in, logging every request to Stdout
+	log.Println(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))
 
 }
 
@@ -65,32 +110,4 @@ func attachProfiler(router *mux.Router) {
 	router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
 	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 	router.Handle("/debug/pprof/block", pprof.Handler("block"))
-}
-
-func main() {
-	var debug = flag.Bool("debug", false, "debug mode")
-	flag.Parse()
-	defer db.Close()
-
-	r := mux.NewRouter()
-
-	if *debug {
-		attachProfiler(r)
-	}
-	checkedChain := alice.New(checkJWTsignature.Handler)
-
-	r.HandleFunc("/", SlashHandler)
-	r.Handle("/login", errorHandler(Login)).Methods("POST")
-	r.Handle("/register", errorHandler(Register)).Methods("POST")
-
-	r.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(NewGame)))
-	r.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(ShowGame)))
-	r.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(TakeSeat)))
-	//
-	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(Action))).Methods("PUT")
-	// r.Handle("/showtops/{gameID}", checkedChain.Then(errorHandler(ShowStackTops))).Methods("GET")
-
-	// Bind to a port and pass our router in, logging every request to Stdout
-	log.Println(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))
-
 }

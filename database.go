@@ -6,18 +6,31 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	// sql backend for this deployment
 
+	// sql backend for this deployment
 	_ "github.com/mattn/go-sqlite3"
 	uuid "github.com/satori/go.uuid"
 )
 
-var db *sql.DB
+// Datastore contains any methods that are going to touch the backend database
+// Cool technique, inspired from http://www.alexedwards.net/blog/organising-database-access
+type Datastore interface {
+	StoreTakGame(tg *TakGame) error
+	RetrieveTakGame(id uuid.UUID) (*TakGame, error)
+	StorePlayer(p *TakPlayer) error
+	RetrievePlayer(name string) (*TakPlayer, error)
+	PlayerExists(n string) bool
+}
 
-// InitDB will initialize a sqlite3 db
-func InitDB(dataSourceName string) error {
+// DB is simply a self-contained
+type DB struct {
+	*sql.DB
+}
+
+// InitSQLiteDB will initialize a sqlite3 db
+func InitSQLiteDB(dataSourceName string) (*DB, error) {
 	var err error
-	db, err = sql.Open("sqlite3", dataSourceName)
+	db, err := sql.Open("sqlite3", dataSourceName)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -25,16 +38,16 @@ func InitDB(dataSourceName string) error {
 		log.Fatal(err)
 	}
 	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS players (guid BLOB(16) PRIMARY KEY, username VARCHAR UNIQUE NOT NULL, hash VARCHAR, playedgames VARCHAR)"); err != nil {
-		return err
+		return nil, err
 	}
 	if _, err = db.Exec("CREATE TABLE IF NOT EXISTS games (guid BLOB(16) PRIMARY KEY UNIQUE, isOver BOOL, isPublic BOOL, hasStarted BOOL, gameBlob VARCHAR)"); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return &DB{db}, nil
 }
 
 // StoreTakGame puts a given game into the database
-func StoreTakGame(tg *TakGame) error {
+func (db *DB) StoreTakGame(tg *TakGame) error {
 	textGame, _ := json.Marshal(tg)
 	// this clever little two step handles INSERT OR UPDATE in sqlite3 so that one can store an existing game and have it update the row in the db
 	// http://stackoverflow.com/questions/15277373/sqlite-upsert-update-or-insert
@@ -48,7 +61,7 @@ func StoreTakGame(tg *TakGame) error {
 }
 
 // RetrieveTakGame gets a game from the db
-func RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
+func (db *DB) RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
 	var gameBlob string
 	queryErr := db.QueryRow("SELECT gameBlob from games WHERE guid = ?", id).Scan(&gameBlob)
 	switch {
@@ -66,14 +79,14 @@ func RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
 }
 
 // StorePlayer puts a given player into the database
-func StorePlayer(p *TakPlayer) error {
+func (db *DB) StorePlayer(p *TakPlayer) error {
 	pg, _ := json.Marshal(p.PlayedGames)
 
 	// this clever little two step handles INSERT OR UPDATE in sqlite3 so that one can store an existing player or have it update an existing one
 	// http://stackoverflow.com/questions/15277373/sqlite-upsert-update-or-insert
 
-	db.Exec("UPDATE players SET guid=?, username=?, hash=?, playedGames=? WHERE guid=?", p.PlayerID, p.Name, p.PasswordHash, pg, p.PlayerID)
-	_, err := db.Exec("INSERT INTO players(guid, username, hash, playedGames) SELECT ?, ?, ?, ? WHERE (SELECT CHANGES() = 0)", p.PlayerID, p.Name, p.PasswordHash, pg)
+	db.Exec("UPDATE players SET guid=?, username=?, hash=?, playedGames=? WHERE guid=?", p.PlayerID, p.Username, p.passwordHash, pg, p.PlayerID)
+	_, err := db.Exec("INSERT INTO players(guid, username, hash, playedGames) SELECT ?, ?, ?, ? WHERE (SELECT CHANGES() = 0)", p.PlayerID, p.Username, p.passwordHash, pg)
 
 	if err != nil {
 		return err
@@ -81,15 +94,15 @@ func StorePlayer(p *TakPlayer) error {
 	return nil
 }
 
-// RetrievePlayerByName gets a player from the db
-func RetrievePlayerByName(name string) (*TakPlayer, error) {
+// RetrievePlayer gets a player from the db by name
+func (db *DB) RetrievePlayer(name string) (*TakPlayer, error) {
 	var (
 		player      TakPlayer
 		playedGames sql.NullString
 		npg         []uuid.UUID
 	)
 
-	queryErr := db.QueryRow("SELECT * from players WHERE username = ?", name).Scan(&player.PlayerID, &player.Name, &player.PasswordHash, &playedGames)
+	queryErr := db.QueryRow("SELECT * from players WHERE username = ?", name).Scan(&player.PlayerID, &player.Username, &player.passwordHash, &playedGames)
 
 	switch {
 	case queryErr == sql.ErrNoRows:
@@ -110,18 +123,16 @@ func RetrievePlayerByName(name string) (*TakPlayer, error) {
 	return &player, nil
 }
 
-// DeleteTakGame deletes a game from the db
-func DeleteTakGame(id uuid.UUID) error {
-	_, err := db.Exec("DELETE FROM games WHERE guid=?", id)
+// PlayerExists checks to see if a username is already taken
+func (db *DB) PlayerExists(n string) bool {
+	// check to see if the name conflicts in the DB
+	var matchName string
 
-	switch {
-	case err == sql.ErrNoRows:
-		return errors.New("No such game found")
-	case err != nil:
-		// problem with running the query? Yell.
-		return err
-	default:
-		return nil
+	queryErr := db.QueryRow("SELECT username FROM players WHERE username = ?", n).Scan(&matchName)
+	if queryErr == sql.ErrNoRows {
+		// that's what we want to see: no rows.
+		return false
 	}
+	return true
 
 }
