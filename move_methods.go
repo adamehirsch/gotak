@@ -106,7 +106,6 @@ func (tg *TakGame) MoveStack(m Movement) error {
 
 	// record the move in the game's turn history
 	tg.TurnHistory = append(tg.TurnHistory, m)
-
 	if tg.IsBlackTurn == true {
 		tg.IsBlackTurn = false
 	} else {

@@ -12,6 +12,11 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// DBenv contains only a Datastore interface, which defines all the methods that deal with the database.
+type DBenv struct {
+	db Datastore
+}
+
 // Datastore contains any methods that are going to touch the backend database
 // Cool technique, inspired from http://www.alexedwards.net/blog/organising-database-access
 type Datastore interface {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +19,8 @@ import (
 )
 
 func init() {
-	log.SetOutput(ioutil.Discard)
+	// funny that this seems to take precedence over the SetOutput call in gotak.go
+	// log.SetOutput(ioutil.Discard)
 }
 
 // this mockDB satisies the "Datastore" interface by having the methods below
@@ -30,12 +32,15 @@ type mockDB struct {
 }
 
 func (mdb *mockDB) StoreTakGame(tg *TakGame) error {
+	mdb.takgame = *tg
 	return nil
 }
 func (mdb *mockDB) RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
+	log.Warn(fmt.Sprintf("retrieving game %v", mdb.takgame.GameID))
 	return &mdb.takgame, nil
 }
 func (mdb *mockDB) StorePlayer(p *TakPlayer) error {
+	mdb.takplayer = *p
 	return nil
 }
 func (mdb *mockDB) RetrievePlayer(name string) (*TakPlayer, error) {
@@ -43,7 +48,7 @@ func (mdb *mockDB) RetrievePlayer(name string) (*TakPlayer, error) {
 }
 
 func (mdb *mockDB) PlayerExists(n string) bool {
-	return mdb.playername == n
+	return mdb.takplayer.Username == n
 }
 
 func TestBoardTooBig(t *testing.T) {
@@ -651,6 +656,44 @@ func TestTooManyPieces(t *testing.T) {
 
 }
 
+func TestDrawStackTops(t *testing.T) {
+
+	testGame, _ := MakeGame(3)
+
+	// b1
+	testGame.GameBoard[1][0] = Stack{[]Piece{blackCap, whiteFlat, blackFlat}}
+	// b2
+	testGame.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	// c2
+	testGame.GameBoard[2][1] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	// c3
+	testGame.GameBoard[2][2] = Stack{[]Piece{blackFlat, blackFlat, whiteFlat, whiteFlat}}
+	testGame.IsGameOver() // highlight the winning path
+
+	testThree, _ := MakeGame(3)
+	testThree.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
+	testThree.GameBoard[0][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testThree.GameBoard[1][2] = Stack{[]Piece{whiteWall, whiteFlat}}
+	testThree.GameBoard[1][1] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+	testThree.GameBoard[2][1] = Stack{[]Piece{whiteWall, whiteFlat}}
+	testThree.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
+
+	testCases := []struct {
+		game        *TakGame
+		desiredTops []string
+	}{
+		{testGame, []string{" ---------", "| .  . (B)|", "| . (B)(B)|", "| . (B) . |", " ---------"}},
+		{testThree, []string{" ---------", "| B  W  B |", "| W  B  W |", "| .  .  . |", " ---------"}},
+	}
+
+	for _, c := range testCases {
+		drawnTops := c.game.DrawStackTops()
+		if !reflect.DeepEqual(drawnTops, c.desiredTops) {
+			t.Errorf("Wanted to see\nstacktops %v\n saw\nstacktops %v\n", c.desiredTops, drawnTops)
+		}
+	}
+}
+
 func TestCapstoneStomping(t *testing.T) {
 	testOne, _ := MakeGame(4)
 	testOne.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat}}
@@ -783,6 +826,59 @@ func TestLoginHandler(t *testing.T) {
 			}
 		}
 
+	}
+}
+
+func TestMoveHandler(t *testing.T) {
+	testGame, _ := MakeGame(5)
+	testGame.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
+	testGame.BlackPlayer = "testBlack"
+	testGame.WhitePlayer = "testWhite"
+	testGame.IsBlackTurn = false
+	desiredBoard := make([][]Stack, testGame.Size, testGame.Size)
+	// ... then populate with the columns of spaces
+	for x := 0; x < testGame.Size; x++ {
+		column := make([]Stack, testGame.Size, testGame.Size)
+		desiredBoard[x] = column
+	}
+
+	desiredBoard[2][3] = Stack{[]Piece{blackFlat, whiteFlat}}
+	desiredBoard[3][3] = Stack{[]Piece{whiteCap}}
+
+	testWhite := TakPlayer{Username: "testWhite"}
+
+	mockEnv := DBenv{db: &mockDB{
+		takgame:    *testGame,
+		takplayer:  testWhite,
+		playername: "testWhite",
+	}}
+
+	testCases := []struct {
+		player TakPlayer
+		move   Movement
+		game   *TakGame
+		board  [][]Stack
+	}{
+		{testWhite, Movement{Coords: "c4", Direction: "+", Carry: 1, Drops: []int{1}}, testGame, desiredBoard},
+	}
+	for _, c := range testCases {
+		playerToken := generateJWT(&(c.player), "test")
+		loginResp := TakJWT{}
+		json.Unmarshal(playerToken, &loginResp)
+		movement, _ := json.Marshal(c.move)
+		rec := httptest.NewRecorder()
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/action/move/%v", testGame.GameID.String()), bytes.NewBuffer(movement))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
+
+		genRouter(&mockEnv).ServeHTTP(rec, req)
+
+		resp := rec.Result()
+		body, _ := ioutil.ReadAll(resp.Body)
+		var postMoveGame TakGame
+		json.Unmarshal(body, &postMoveGame)
+		if !reflect.DeepEqual(postMoveGame.GameBoard, c.game.GameBoard) {
+			t.Errorf("board problem: \nwanted %v\n   got %v\n", c.game.GameBoard, postMoveGame.GameBoard)
+		}
 	}
 }
 

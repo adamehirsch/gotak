@@ -50,16 +50,21 @@ func init() {
 	}
 
 	// Output to stdout instead of the default stderr
-	// Can be any io.Writer, see below for File example
+	// Can be any io.Writer
 	log.SetOutput(os.Stdout)
 
-	// Only log the warning severity or above.
-	log.SetLevel(log.DebugLevel)
-}
+	var debug = flag.Bool("debug", false, "debug mode")
+	flag.Parse()
 
-// DBenv contains only a Datastore interface, which defines all the methods that deal with the database.
-type DBenv struct {
-	db Datastore
+	if *debug {
+		log.SetLevel(log.DebugLevel)
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	} else {
+		log.SetLevel(log.WarnLevel)
+	}
+
 }
 
 func main() {
@@ -69,33 +74,26 @@ func main() {
 	if err != nil {
 		log.Panicf("problem initializing db connection: %v", err)
 	}
-
-	env := &DBenv{db}
-
-	var debug = flag.Bool("debug", false, "debug mode")
-	flag.Parse()
 	defer db.Close()
 
+	// set up the live database behind a Datastore interface for our methods to run against
+	env := &DBenv{db}
+	// Bind to a port and pass our router in, logging every request to Stdout
+	log.Println(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, genRouter(env))))
+
+}
+
+func genRouter(env *DBenv) *mux.Router {
 	r := mux.NewRouter()
-
-	if *debug {
-		attachProfiler(r)
-	}
 	checkedChain := alice.New(checkJWTsignature.Handler)
-
 	r.HandleFunc("/", SlashHandler)
 	r.Handle("/login", errorHandler(env.Login)).Methods("POST")
 	r.Handle("/register", errorHandler(env.Register)).Methods("POST")
-
 	r.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(env.NewGame)))
 	r.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(env.ShowGame)))
 	r.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(env.TakeSeat)))
-	//
 	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(env.Action))).Methods("PUT")
-
-	// Bind to a port and pass our router in, logging every request to Stdout
-	log.Println(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, r)))
-
+	return r
 }
 
 // gorilla mux requires some explicit steps to get pprof to attach to it

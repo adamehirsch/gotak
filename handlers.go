@@ -38,7 +38,7 @@ func SlashHandler(w http.ResponseWriter, r *http.Request) {
 func (env *DBenv) NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 	player, err := env.authUser(r)
 	if err != nil {
-		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+		return &WebError{err, fmt.Sprintf("problem authenticating user: %v", err), http.StatusUnprocessableEntity}
 	}
 
 	// pull the boardSize out of the URL itself, e.g. /newgame/4, /newgame/6
@@ -77,7 +77,7 @@ func (env *DBenv) NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 func (env *DBenv) ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 	player, err := env.authUser(r)
 	if err != nil {
-		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+		return &WebError{err, fmt.Sprintf("problem authenticating user: %v", err), http.StatusUnprocessableEntity}
 	}
 
 	vars := mux.Vars(r)
@@ -120,14 +120,14 @@ func (env *DBenv) ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 func (env *DBenv) Action(w http.ResponseWriter, r *http.Request) *WebError {
 	player, err := env.authUser(r)
 	if err != nil {
-		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+		return &WebError{err, fmt.Sprintf("problem authenticating user: %v", err), http.StatusUnprocessableEntity}
 	}
 
 	// get the gameID from the URL path
 	vars := mux.Vars(r)
 	gameID, err := uuid.FromString(vars["gameID"])
 	if err != nil {
-		return &WebError{err, "Problem with game ID", http.StatusNotAcceptable}
+		return &WebError{err, fmt.Sprintf("Problem with game ID: %v", err), http.StatusNotAcceptable}
 	}
 
 	// fetch out and validate that we've got a game by that ID
@@ -284,7 +284,7 @@ func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
 func (env *DBenv) TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
 	player, err := env.authUser(r)
 	if err != nil {
-		return &WebError{err, "problem authenticating user", http.StatusUnprocessableEntity}
+		return &WebError{err, fmt.Sprintf("problem authenticating user: %v", err), http.StatusUnprocessableEntity}
 	}
 
 	// get the gameID from the URL path
