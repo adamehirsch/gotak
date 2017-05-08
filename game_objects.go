@@ -27,52 +27,54 @@ type Piece struct {
 	Orientation string `json:"orientation"`
 }
 
-var whiteFlat = Piece{"white", "flat"}
-var blackFlat = Piece{"black", "flat"}
-var whiteCap = Piece{"white", "capstone"}
-var blackCap = Piece{"black", "capstone"}
-var whiteWall = Piece{"white", "wall"}
-var blackWall = Piece{"black", "wall"}
+var (
+	whiteFlat = Piece{"white", "flat"}
+	blackFlat = Piece{"black", "flat"}
+	whiteCap  = Piece{"white", "capstone"}
+	blackCap  = Piece{"black", "capstone"}
+	whiteWall = Piece{"white", "wall"}
+	blackWall = Piece{"black", "wall"}
+)
 
 // Stack is just a slice of Pieces.
 type Stack struct {
-	// Note: the "top" of the stack is at [0]
+	// Note: the "top" of the stack, for game purposes, is at [0]
 	Pieces []Piece
 }
 
 // TakPlayer describes a human player
 type TakPlayer struct {
-	Name         string     `json:"name"`
-	PlayerID     uuid.UUID  `json:"playerID"`
-	PlayedGames  []*TakGame `json:"playedGames"`
-	PasswordHash []byte     `json:"-"`
-}
-
-// PlayerReg is a struct used when people register a new player
-type PlayerReg struct {
-	UserName string `json:"username"`
-	Password string `json:"password"`
+	Username     string      `json:"username"`
+	PlayerID     uuid.UUID   `json:"playerID"`
+	PlayedGames  []uuid.UUID `json:"playedGames"`
+	passwordHash []byte
+	// I don't like having to have the password exported. TODO: is this actually a problem? Password is explicitly not saved in the db store
+	Password string
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
 type TakGame struct {
-	GameID      uuid.UUID  `json:"gameID"`
-	GameBoard   [][]Stack  `json:"gameBoard"`
-	IsBlackTurn bool       `json:"isBlackTurn"`
-	BlackWinner bool       `json:"blackWinner"`
-	WhiteWinner bool       `json:"whiteWinner"`
-	RoadWin     bool       `json:"roadWin"`
-	FlatWin     bool       `json:"flatWin"`
-	DrawGame    bool       `json:"drawGame"`
-	GameOver    bool       `json:"gameOver"`
-	GameWinner  uuid.UUID  `json:"gameWinner"`
-	WinningPath []Coords   `json:"winningPath"`
-	StartTime   time.Time  `json:"startTime"`
-	WinTime     time.Time  `json:"winTime"`
-	BlackPlayer *TakPlayer `json:"blackPlayerID"`
-	WhitePlayer *TakPlayer `json:"whitePlayerID"`
-	Size        int        `json:"size"`
-	MoveCount   int        `json:"moveCount"`
+	GameID      uuid.UUID     `json:"gameID"`
+	GameBoard   [][]Stack     `json:"gameBoard"`
+	IsBlackTurn bool          `json:"isBlackTurn"`
+	BlackWinner bool          `json:"blackWinner"`
+	WhiteWinner bool          `json:"whiteWinner"`
+	RoadWin     bool          `json:"roadWin"`
+	FlatWin     bool          `json:"flatWin"`
+	DrawGame    bool          `json:"drawGame"`
+	GameOver    bool          `json:"gameOver"`
+	GameWinner  string        `json:"gameWinner"`
+	WinningPath []Coords      `json:"winningPath"`
+	StartTime   time.Time     `json:"startTime"`
+	WinTime     time.Time     `json:"winTime"`
+	BlackPlayer string        `json:"blackPlayer"`
+	WhitePlayer string        `json:"whitePlayer"`
+	GameOwner   string        `json:"gameOwner"`
+	IsPublic    bool          `json:"isPublic"`
+	HasStarted  bool          `json:"hasStarted"`
+	Size        int           `json:"size"`
+	MoveCount   int           `json:"moveCount"`
+	TurnHistory []interface{} `json:"turnHistory"`
 }
 
 // PieceLimits is a map of gridsize to piece limits per player
@@ -83,40 +85,6 @@ var PieceLimits = map[int]int{
 	5: 21,
 	6: 30,
 	8: 50,
-}
-
-// I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
-var gameIndex = make(map[uuid.UUID]*TakGame)
-
-// MakeGame takes an integer size and returns a &GameBoard
-func MakeGame(size int) (*TakGame, error) {
-	if size < 3 || size > 8 {
-		return nil, errors.New("board size must be in the range 3 to 8 squares")
-	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	// each board gets a unique, random UUIDv4
-	newUUID := uuid.NewV4()
-	// first make the rows...
-	newGameBoard := make([][]Stack, size, size)
-
-	// ... then populate with the columns of spaces
-	for x := 0; x < size; x++ {
-		column := make([]Stack, size, size)
-		newGameBoard[x] = column
-	}
-
-	newTakGame := TakGame{
-		GameID:    newUUID,
-		GameBoard: newGameBoard,
-		Size:      size,
-		// randomly select a first player with a bool
-		IsBlackTurn: (r.Intn(2) == 0),
-	}
-
-	gameIndex[newUUID] = &newTakGame
-
-	return &newTakGame, nil
 }
 
 // LetterMap converts Tak x-values (letters) to their start-at-zero grid index value. 8x8 games are the max size.
@@ -143,13 +111,13 @@ var NumberToLetter = map[int]string{
 	7: "h",
 }
 
-// Placement descripts the necessary aspects to describe an action that places a new piece on the board
+// Placement describes an action that places a new piece on the board
 type Placement struct {
 	Piece  Piece  `json:"piece"`
 	Coords string `json:"coords"`
 }
 
-// Movement contains the necessary aspects to describe an action that moves a stack.
+// Movement describes an action that moves a stack.
 type Movement struct {
 	Coords    string `json:"coords"`
 	Direction string `json:"direction"`
@@ -157,9 +125,45 @@ type Movement struct {
 	Drops     []int  `json:"drops"`
 }
 
-// WebError is a custom error type for reporting bad events when making an HTTP request
-type WebError struct {
-	Error   error
-	Message string
-	Code    int
+// TakJWT is a simple struct to return JWTs in JSON
+type TakJWT struct {
+	JWT     string `json:"jwt"`
+	Message string `json:"message"`
+}
+
+// StackTops is a simple string to display a top-down view of the game (mostly useful for debugging)
+type StackTops struct {
+	TopView []string `json:"topView"`
+}
+
+// MakeGame takes an integer size and returns a TakGame with a board that size
+func MakeGame(size int) (*TakGame, error) {
+	if size < 3 || size > 8 {
+		return nil, errors.New("board size must be in the range 3 to 8 squares")
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// each game gets a guid
+	newUUID := uuid.NewV4()
+
+	newGameBoard := makeGameBoard(size)
+	newTakGame := TakGame{
+		GameID:    newUUID,
+		GameBoard: newGameBoard,
+		Size:      size,
+		// randomly select a first player with a bool
+		IsBlackTurn: (r.Intn(2) == 0),
+	}
+
+	return &newTakGame, nil
+}
+
+func makeGameBoard(s int) [][]Stack {
+	newBoard := make([][]Stack, s, s)
+	// ... then populate with the columns of spaces
+	for x := 0; x < s; x++ {
+		column := make([]Stack, s, s)
+		newBoard[x] = column
+	}
+	return newBoard
 }
