@@ -1,30 +1,37 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
-
-	authboss "gopkg.in/authboss.v1"
-
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
+	"github.com/jessevdk/go-flags"
 	"github.com/justinas/alice"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/spf13/viper"
 )
 
 var (
-	ab            = authboss.New()
 	sslKey        string
 	sslCert       string
-	jwtSigningKey []byte
+	jwtSigningKey string
 	loginDays     int
+	dbFile        string
 )
+
+// commandline options
+var opts struct {
+	Debug     bool   `short:"d" long:"debug" description:"Show verbose debug information"`
+	SSLkey    string `long:"sslkey" description:"SSL key file"`
+	SSLcert   string `long:"sslcert" description:"SSL cert file"`
+	DBfile    string `long:"dbfile" description:"sqlite database storage file"`
+	JWTkey    string `long:"jwtkey" description:"encryption key for JWT authentication tokens"`
+	LoginDays int    `long:"logindays" description:"duration of time a JWT token is valid"`
+}
 
 func init() {
 
@@ -34,30 +41,50 @@ func init() {
 	if err := viper.ReadInConfig(); err != nil {
 		panic(fmt.Sprintf("can't read configuration file: %v", err))
 	}
-
 	sslKey = viper.GetString("production.sslKey")
 	sslCert = viper.GetString("production.sslCert")
 	loginDays = viper.GetInt("production.loginDays")
+	jwtSigningKey = viper.GetString("production.jwtSigningKey")
+	dbFile = viper.GetString("production.dbname")
 
-	jwtSigningKey = []byte(viper.GetString("production.jwtSigningKey"))
+	// ... flags, however, overrule the config file. Replace any unset flag values with values from the config file.
+	flags.Parse(&opts)
 
-	if _, err := os.Stat(sslKey); os.IsNotExist(err) {
-		panic(fmt.Sprintf("can't read SSL key %v: %v", sslKey, err))
+	if opts.SSLkey == "" {
+		opts.SSLkey = sslKey
 	}
 
-	if _, err := os.Stat(sslCert); os.IsNotExist(err) {
-		panic(fmt.Sprintf("can't read SSL cert %v: %v", sslCert, err))
+	if opts.SSLcert == "" {
+		opts.SSLcert = sslCert
+	}
+
+	if opts.LoginDays == 0 {
+		opts.LoginDays = loginDays
+	}
+
+	if opts.JWTkey == "" {
+		opts.JWTkey = jwtSigningKey
+	}
+
+	if opts.DBfile == "" {
+		opts.DBfile = dbFile
+	}
+
+	if _, err := os.Stat(opts.SSLkey); os.IsNotExist(err) {
+		panic(fmt.Sprintf("can't read SSL key %v: %v", opts.SSLkey, err))
+	}
+
+	if _, err := os.Stat(opts.SSLcert); os.IsNotExist(err) {
+		panic(fmt.Sprintf("can't read SSL cert %v: %v", opts.SSLcert, err))
 	}
 
 	// Output to stdout instead of the default stderr
 	// Can be any io.Writer
 	log.SetOutput(os.Stdout)
 
-	var debug = flag.Bool("debug", false, "debug mode")
-	flag.Parse()
-
-	if *debug {
+	if opts.Debug {
 		log.SetLevel(log.DebugLevel)
+		fmt.Printf("Provided options: %+v", opts)
 		go func() {
 			log.Println(http.ListenAndServe("localhost:6060", nil))
 		}()
@@ -70,7 +97,7 @@ func init() {
 func main() {
 
 	// ensure the database is setup
-	db, err := InitSQLiteDB(viper.GetString("production.dbname"))
+	db, err := InitSQLiteDB(opts.DBfile)
 	if err != nil {
 		log.Panicf("problem initializing db connection: %v", err)
 	}
@@ -79,7 +106,7 @@ func main() {
 	// set up the live database behind a Datastore interface for our methods to run against
 	env := &DBenv{db}
 	// Bind to a port and pass our router in, logging every request to Stdout
-	log.Println(http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, genRouter(env))))
+	http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, genRouter(env)))
 
 }
 

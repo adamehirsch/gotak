@@ -19,6 +19,13 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+// WebError is a custom error type for reporting bad events when making an HTTP request
+type WebError struct {
+	Error   error
+	Message string
+	Code    int
+}
+
 // simplify error reporting in web handlers by making our own type that handles WebError return values
 type errorHandler func(http.ResponseWriter, *http.Request) *WebError
 
@@ -156,7 +163,7 @@ func (env *DBenv) Action(w http.ResponseWriter, r *http.Request) *WebError {
 			return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
 		}
 
-		// json.Unmarshal will sometimes parse valid but inapplicable JSON into an empty struct. Catch that.
+		// json.Unmarshal will parse valid but inapplicable JSON into an empty struct. Catch that.
 		if ((placement.Piece) == Piece{} || (placement.Coords) == "") {
 			return &WebError{errors.New("Missing piece and/or coordinates"), "Placement is missing piece and/or coordinates", http.StatusUnprocessableEntity}
 		}
@@ -176,7 +183,7 @@ func (env *DBenv) Action(w http.ResponseWriter, r *http.Request) *WebError {
 			return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
 		}
 
-		// json.Unmarshal will sometimes parse valid but inapplicable JSON into an empty struct. Catch that.
+		// json.Unmarshal will parse valid but inapplicable JSON into an empty struct. Catch that.
 		if (movement.Coords) == "" || (movement.Direction == "") {
 			return &WebError{errors.New("Missing coordinates and/or direction"), "Missing coordinates and/or direction", http.StatusUnprocessableEntity}
 		}
@@ -190,6 +197,7 @@ func (env *DBenv) Action(w http.ResponseWriter, r *http.Request) *WebError {
 			requestedGame.StartTime = time.Now()
 		}
 	}
+
 	// store the updated game back in the DB
 	if err = env.db.StoreTakGame(requestedGame); err != nil {
 		return &WebError{err, fmt.Sprintf("storage problem: %v", err), http.StatusInternalServerError}
@@ -254,7 +262,7 @@ func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
 		return &WebError{unmarshalError, "Problem decoding JSON", http.StatusUnprocessableEntity}
 	}
 
-	// json.Unmarshal will sometimes parse valid but inapplicable JSON into an empty struct. Catch that.
+	// json.Unmarshal will parse valid but inapplicable JSON into an empty struct. Catch that.
 	if newPlayer.Username == "" || newPlayer.Password == "" {
 		log.WithFields(log.Fields{"username": newPlayer.Username, "password": newPlayer.Password}).Debug("register problem")
 		return &WebError{errors.New("Missing new player username or password"), "Missing new player username or password", http.StatusUnprocessableEntity}

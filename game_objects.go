@@ -87,38 +87,6 @@ var PieceLimits = map[int]int{
 	8: 50,
 }
 
-// I'll need some way to keep multiple boards stored and accessible; a map between UUID and Board might be just the ticket.
-// var gameIndex = make(map[uuid.UUID]*TakGame)
-
-// MakeGame takes an integer size and returns a &GameBoard
-func MakeGame(size int) (*TakGame, error) {
-	if size < 3 || size > 8 {
-		return nil, errors.New("board size must be in the range 3 to 8 squares")
-	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	// each board gets a guid
-	newUUID := uuid.NewV4()
-	// first make the rows...
-	newGameBoard := make([][]Stack, size, size)
-
-	// ... then populate with the columns of spaces
-	for x := 0; x < size; x++ {
-		column := make([]Stack, size, size)
-		newGameBoard[x] = column
-	}
-
-	newTakGame := TakGame{
-		GameID:    newUUID,
-		GameBoard: newGameBoard,
-		Size:      size,
-		// randomly select a first player with a bool
-		IsBlackTurn: (r.Intn(2) == 0),
-	}
-
-	return &newTakGame, nil
-}
-
 // LetterMap converts Tak x-values (letters) to their start-at-zero grid index value. 8x8 games are the max size.
 var LetterMap = map[string]int{
 	"a": 0,
@@ -143,25 +111,18 @@ var NumberToLetter = map[int]string{
 	7: "h",
 }
 
-// Placement descripts the necessary aspects to describe an action that places a new piece on the board
+// Placement describes an action that places a new piece on the board
 type Placement struct {
 	Piece  Piece  `json:"piece"`
 	Coords string `json:"coords"`
 }
 
-// Movement contains the necessary aspects to describe an action that moves a stack.
+// Movement describes an action that moves a stack.
 type Movement struct {
 	Coords    string `json:"coords"`
 	Direction string `json:"direction"`
 	Carry     int    `json:"carry"`
 	Drops     []int  `json:"drops"`
-}
-
-// WebError is a custom error type for reporting bad events when making an HTTP request
-type WebError struct {
-	Error   error
-	Message string
-	Code    int
 }
 
 // TakJWT is a simple struct to return JWTs in JSON
@@ -173,4 +134,36 @@ type TakJWT struct {
 // StackTops is a simple string to display a top-down view of the game (mostly useful for debugging)
 type StackTops struct {
 	TopView []string `json:"topView"`
+}
+
+// MakeGame takes an integer size and returns a TakGame with a board that size
+func MakeGame(size int) (*TakGame, error) {
+	if size < 3 || size > 8 {
+		return nil, errors.New("board size must be in the range 3 to 8 squares")
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// each game gets a guid
+	newUUID := uuid.NewV4()
+
+	newGameBoard := makeGameBoard(size)
+	newTakGame := TakGame{
+		GameID:    newUUID,
+		GameBoard: newGameBoard,
+		Size:      size,
+		// randomly select a first player with a bool
+		IsBlackTurn: (r.Intn(2) == 0),
+	}
+
+	return &newTakGame, nil
+}
+
+func makeGameBoard(s int) [][]Stack {
+	newBoard := make([][]Stack, s, s)
+	// ... then populate with the columns of spaces
+	for x := 0; x < s; x++ {
+		column := make([]Stack, s, s)
+		newBoard[x] = column
+	}
+	return newBoard
 }

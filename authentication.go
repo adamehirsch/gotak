@@ -20,21 +20,21 @@ var checkJWTsignature = jwtmiddleware.New(jwtmiddleware.Options{
 })
 
 func jwtKeyFn(token *jwt.Token) (interface{}, error) {
-	return jwtSigningKey, nil
+	return []byte(opts.JWTkey), nil
 }
 
 func generateJWT(p *TakPlayer, m string) []byte {
-	// Okay, the person's authenticated. Give them a token.
+	// At this point, presume the person's authenticated. Give them a token.
 	token := jwt.New(jwt.SigningMethodHS256)
 
-	// /* Create a map to store our claims */
+	// Create a map to store our claims
 	claims := token.Claims.(jwt.MapClaims)
 
 	claims["user"] = p.Username
 	claims["exp"] = time.Now().Add(time.Hour * 24 * time.Duration(loginDays)).Unix()
 
 	// sign the token
-	tokenString, _ := token.SignedString(jwtSigningKey)
+	tokenString, _ := token.SignedString([]byte(opts.JWTkey))
 	thisJWT := TakJWT{
 		JWT:     tokenString,
 		Message: m,

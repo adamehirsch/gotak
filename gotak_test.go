@@ -21,6 +21,7 @@ import (
 func init() {
 	// funny that this seems to take precedence over the SetOutput call in gotak.go
 	// log.SetOutput(ioutil.Discard)
+	log.SetLevel(log.WarnLevel)
 }
 
 // this mockDB satisies the "Datastore" interface by having the methods below
@@ -36,7 +37,7 @@ func (mdb *mockDB) StoreTakGame(tg *TakGame) error {
 	return nil
 }
 func (mdb *mockDB) RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
-	log.Warn(fmt.Sprintf("retrieving game %v", mdb.takgame.GameID))
+	log.Debug(fmt.Sprintf("retrieving game %v", mdb.takgame.GameID))
 	return &mdb.takgame, nil
 }
 func (mdb *mockDB) StorePlayer(p *TakPlayer) error {
@@ -835,13 +836,8 @@ func TestMoveHandler(t *testing.T) {
 	testGame.BlackPlayer = "testBlack"
 	testGame.WhitePlayer = "testWhite"
 	testGame.IsBlackTurn = false
-	desiredBoard := make([][]Stack, testGame.Size, testGame.Size)
-	// ... then populate with the columns of spaces
-	for x := 0; x < testGame.Size; x++ {
-		column := make([]Stack, testGame.Size, testGame.Size)
-		desiredBoard[x] = column
-	}
 
+	desiredBoard := makeGameBoard(5)
 	desiredBoard[2][3] = Stack{[]Piece{blackFlat, whiteFlat}}
 	desiredBoard[3][3] = Stack{[]Piece{whiteCap}}
 
