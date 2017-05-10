@@ -20,6 +20,7 @@ import (
 )
 
 // WebError is a custom error type for reporting bad events when making an HTTP request
+// swagger:model
 type WebError struct {
 	Error   error
 	Message string
@@ -290,6 +291,20 @@ func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
 
 // TakeSeat gives an open seat in a game to a requesting player
 func (env *DBenv) TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
+	// swagger:route GET /takeseat/{gameID} TakeSeat
+	// for an authenticated user, allocates them an open seat on a specified game
+	//
+	//     Consumes:
+	//
+	//     Produces:
+	//     - application/json
+	//     Responses:
+	//       200: TakGame
+	//       404: WebError
+	// 			 406: WebError
+	//       422: WebError
+	//       500: WebError
+
 	player, err := env.authUser(r)
 	if err != nil {
 		return &WebError{err, fmt.Sprintf("problem authenticating user: %v", err), http.StatusUnprocessableEntity}
@@ -336,4 +351,12 @@ func (env *DBenv) TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
 	gamePayload, _ := json.Marshal(requestedGame)
 	w.Write([]byte(gamePayload))
 	return nil
+}
+
+// swagger:parameters TakeSeat ShowGame Action
+// GameIDParam is a uuid key specifying one TakGame
+type GameIDParam struct {
+	// gameID is useful
+	// in: path
+	GameID string `json:"gameID"`
 }

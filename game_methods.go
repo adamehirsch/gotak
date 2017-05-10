@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
@@ -33,8 +35,10 @@ func (tg *TakGame) PlacePiece(p Placement) error {
 	tg.TurnHistory = append(tg.TurnHistory, p)
 
 	if tg.IsBlackTurn == true {
+		log.Debug("is now white turn")
 		tg.IsBlackTurn = false
 	} else {
+		log.Debug("is now black turn")
 		tg.IsBlackTurn = true
 	}
 	if tg.IsGameOver() {
@@ -147,10 +151,13 @@ func (tg *TakGame) ValidatePlacement(p Placement) error {
 	switch {
 	case emptyErr != nil:
 		return fmt.Errorf("Problem checking square %v: %v", p.Coords, emptyErr)
-	case tg.IsBlackTurn && rWhite.MatchString(p.Piece.Color):
+	case tg.IsBlackTurn && rWhite.MatchString(p.Piece.Color) && len(tg.TurnHistory) > 2:
 		return errors.New("Cannot place white piece on black turn")
-	case tg.IsBlackTurn == false && rBlack.MatchString(p.Piece.Color):
+	case tg.IsBlackTurn == false && rBlack.MatchString(p.Piece.Color) && len(tg.TurnHistory) > 2:
 		return errors.New("Cannot place black piece on white turn")
+	case ((tg.IsBlackTurn && rBlack.MatchString(p.Piece.Color)) || (tg.IsBlackTurn == false && rWhite.MatchString(p.Piece.Color))) && len(tg.TurnHistory) < 2:
+		// the very first two placements must be of the opposite color than usual
+		return errors.New("first two placements must be of the opponent's color")
 	case squareIsEmpty != true:
 		return fmt.Errorf("Cannot place piece on occupied square %v", p.Coords)
 	case len(tg.GameBoard) < 5 && p.Piece.Orientation == Capstone:
@@ -191,6 +198,8 @@ func (tg *TakGame) ValidateMovement(m Movement) error {
 	}
 
 	switch {
+	case len(tg.TurnHistory) < 2:
+		return errors.New("first two turns must be opposite-color placements")
 	case stackTop.Color == White && tg.IsBlackTurn == true:
 		return errors.New("cannot move white-topped stack on black's turn")
 	case stackTop.Color == Black && tg.IsBlackTurn == false:
@@ -265,10 +274,9 @@ func (tg *TakGame) WallInWay(m Movement) error {
 
 		// if there's a piece on the square we're looking at ...
 		if len(nextSquare.Pieces) > 0 {
-			// fmt.Printf("Pieces encountered: %v\n", nextSquare.Pieces)
 			switch nextSquare.Pieces[0].Orientation {
-			// if it's a capstone, you're just out of luck.
 			case Capstone:
+				// if it's a capstone, you're just out of luck.
 				return fmt.Errorf("Movement can't flatten a capstone at %v", humanCoords)
 			case Wall:
 				if hasCapstone == false {

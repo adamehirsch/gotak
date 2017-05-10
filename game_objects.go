@@ -42,6 +42,20 @@ type Stack struct {
 	Pieces []Piece
 }
 
+// Placement describes an action that places a new piece on the board
+type Placement struct {
+	Piece  Piece  `json:"piece"`
+	Coords string `json:"coords"`
+}
+
+// Movement describes an action that moves a stack.
+type Movement struct {
+	Coords    string `json:"coords"`
+	Direction string `json:"direction"`
+	Carry     int    `json:"carry"`
+	Drops     []int  `json:"drops"`
+}
+
 // TakPlayer describes a human player
 type TakPlayer struct {
 	Username     string      `json:"username"`
@@ -53,9 +67,16 @@ type TakPlayer struct {
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
+//
+// swagger:model
 type TakGame struct {
-	GameID      uuid.UUID     `json:"gameID"`
-	GameBoard   [][]Stack     `json:"gameBoard"`
+	// the id for this game
+	//
+	// required: true
+	GameID uuid.UUID `json:"gameID"`
+	// the gameboard for this game, represented as stacks of Pieces
+	GameBoard [][]Stack `json:"gameBoard"`
+	// Boolean indicator of whose turn it is
 	IsBlackTurn bool          `json:"isBlackTurn"`
 	BlackWinner bool          `json:"blackWinner"`
 	WhiteWinner bool          `json:"whiteWinner"`
@@ -111,27 +132,13 @@ var NumberToLetter = map[int]string{
 	7: "h",
 }
 
-// Placement describes an action that places a new piece on the board
-type Placement struct {
-	Piece  Piece  `json:"piece"`
-	Coords string `json:"coords"`
-}
-
-// Movement describes an action that moves a stack.
-type Movement struct {
-	Coords    string `json:"coords"`
-	Direction string `json:"direction"`
-	Carry     int    `json:"carry"`
-	Drops     []int  `json:"drops"`
-}
-
 // TakJWT is a simple struct to return JWTs in JSON
 type TakJWT struct {
 	JWT     string `json:"jwt"`
 	Message string `json:"message"`
 }
 
-// StackTops is a simple string to display a top-down view of the game (mostly useful for debugging)
+// StackTops is a slice of rows that displays a top-down view of the game (mostly useful for debugging)
 type StackTops struct {
 	TopView []string `json:"topView"`
 }

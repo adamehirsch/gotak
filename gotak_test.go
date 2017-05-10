@@ -137,6 +137,9 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	// d2
 	testBoard.GameBoard[3][1] = Stack{[]Piece{whiteCap, blackFlat}}
 	testBoard.IsBlackTurn = false
+	// let's just pretend we've got a longer turn history already in place
+	testBoard.TurnHistory = append(testBoard.TurnHistory, Movement{}, Placement{})
+	log.Debug(fmt.Sprintf("turnhistory length: %v", len(testBoard.TurnHistory)))
 
 	cases := []struct {
 		placement Placement
@@ -173,6 +176,7 @@ func TestTurnTaking(t *testing.T) {
 	// d2
 	testBoard.GameBoard[3][1] = Stack{[]Piece{whiteCap, blackFlat}}
 	testBoard.IsBlackTurn = true
+	testBoard.TurnHistory = append(testBoard.TurnHistory, Movement{}, Placement{})
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -181,7 +185,7 @@ func TestTurnTaking(t *testing.T) {
 	}{
 		{Placement{Coords: "b5", Piece: blackFlat}, errors.New("bad placement request: Cannot place piece on occupied square b5")},
 		{Placement{Coords: "a1", Piece: whiteCap}, errors.New("bad placement request: Cannot place piece on occupied square a1")},
-		{Placement{Coords: "b2", Piece: whiteFlat}, errors.New("bad placement request: Cannot place white piece on black turn")},
+		{Placement{Coords: "b2", Piece: blackFlat}, nil},
 		{Placement{Coords: "a4", Piece: blackFlat}, errors.New("bad placement request: Cannot place black piece on white turn")},
 		{Placement{Coords: "b3", Piece: bogusFlat}, errors.New("bad placement request: Invalid piece color 'bogus'")},
 		{Placement{Coords: "h1", Piece: whiteFlat}, errors.New("bad placement request: h1: coordinates 'h1' larger than board size: 5")},
@@ -189,11 +193,7 @@ func TestTurnTaking(t *testing.T) {
 
 	for _, c := range cases {
 		err := testBoard.PlacePiece(c.placement)
-		if testBoard.IsBlackTurn == true {
-			testBoard.IsBlackTurn = false
-		} else {
-			testBoard.IsBlackTurn = true
-		}
+		// log.WithFields(log.Fields{"isBlackTurn": testBoard.IsBlackTurn, "coords": c.placement.Coords}).Debug("turntaking, after")
 
 		if reflect.DeepEqual(err, c.Problem) == false {
 			t.Errorf("Returned error from coords %v was '%v': wanted '%v'\n", c.placement.Coords, err, c.Problem)
@@ -216,6 +216,7 @@ func TestEmptySquareDetection(t *testing.T) {
 	// c3
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteWall}}
 	testGame.IsBlackTurn = false
+	testGame.TurnHistory = append(testGame.TurnHistory, Movement{}, Placement{})
 
 	cases := []struct {
 		coords string
@@ -230,10 +231,14 @@ func TestEmptySquareDetection(t *testing.T) {
 		if isEmpty != c.empty {
 			t.Errorf("coords %v SquareIsEmpty: '%v': should be '%v'\n", c.coords, isEmpty, c.empty)
 		}
+
 	}
 
 	c4Move := Movement{Coords: "c3", Direction: "+", Carry: 1, Drops: []int{1}}
-	testGame.MoveStack(c4Move)
+	if err := testGame.MoveStack(c4Move); err != nil {
+		t.Errorf("problem moving: %v th is %v", err, len(testGame.TurnHistory))
+	}
+
 	cases = []struct {
 		coords string
 		empty  bool
@@ -243,8 +248,8 @@ func TestEmptySquareDetection(t *testing.T) {
 	}
 
 	for _, c := range cases {
+
 		isEmpty, _ := testGame.SquareIsEmpty(c.coords)
-		// testGame.DrawStackTops()
 		if isEmpty != c.empty {
 			t.Errorf("Post-move: coords %v SquareIsEmpty: '%v': should be '%v'\n", c.coords, isEmpty, c.empty)
 		}
@@ -285,8 +290,7 @@ func TestValidMovement(t *testing.T) {
 	//d1
 	testBoard.GameBoard[3][0] = Stack{[]Piece{whiteFlat, blackFlat, whiteFlat, blackFlat, whiteFlat, blackFlat, whiteFlat, blackFlat}}
 	testBoard.IsBlackTurn = false
-
-	// testBoard.DrawStackTops()
+	testBoard.TurnHistory = append(testBoard.TurnHistory, Placement{}, Placement{})
 
 	cases := []struct {
 		move    Movement
@@ -613,7 +617,7 @@ func TestTooManyPieces(t *testing.T) {
 	testOne.GameBoard[2][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
 	testOne.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testOne.IsBlackTurn = false
-	// testOne.PlacePiece(Placement{Coords: "b1", Piece: whiteFlat})
+	testOne.TurnHistory = append(testOne.TurnHistory, Placement{}, Placement{})
 
 	testTwo, _ := MakeGame(3)
 	testTwo.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
@@ -623,6 +627,7 @@ func TestTooManyPieces(t *testing.T) {
 	testTwo.GameBoard[2][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
 	testTwo.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testTwo.IsBlackTurn = true
+	testTwo.TurnHistory = append(testTwo.TurnHistory, Placement{}, Placement{})
 
 	testThree, _ := MakeGame(3)
 	testThree.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
@@ -699,12 +704,14 @@ func TestCapstoneStomping(t *testing.T) {
 	testOne, _ := MakeGame(4)
 	testOne.GameBoard[0][0] = Stack{[]Piece{whiteFlat, whiteFlat, blackFlat}}
 	testOne.GameBoard[0][1] = Stack{[]Piece{blackWall}}
+	testOne.TurnHistory = append(testOne.TurnHistory, Placement{}, Placement{})
 	testOneMove := Movement{Direction: "+", Carry: 2, Drops: []int{1, 1}, Coords: "a1"}
 	testOne.IsBlackTurn = false
 
 	testTwo, _ := MakeGame(4)
 	testTwo.GameBoard[0][0] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testTwo.GameBoard[1][0] = Stack{[]Piece{whiteCap}}
+	testTwo.TurnHistory = append(testTwo.TurnHistory, Placement{}, Placement{})
 	testTwoMove := Movement{Direction: "<", Carry: 1, Drops: []int{1}, Coords: "b1"}
 	testTwo.IsBlackTurn = false
 
@@ -713,6 +720,8 @@ func TestCapstoneStomping(t *testing.T) {
 	testThree.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
 	//d4
 	testThree.GameBoard[3][3] = Stack{[]Piece{blackWall}}
+	testThree.TurnHistory = append(testThree.TurnHistory, Placement{}, Placement{})
+
 	testThreeMove := Movement{Direction: ">", Carry: 2, Drops: []int{1, 1}, Coords: "c4"}
 	testThree.IsBlackTurn = false
 
@@ -721,6 +730,8 @@ func TestCapstoneStomping(t *testing.T) {
 	testFour.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
 	//d4
 	testFour.GameBoard[3][3] = Stack{[]Piece{blackWall}}
+	testFour.TurnHistory = append(testFour.TurnHistory, Placement{}, Placement{})
+
 	testFourMove := Movement{Direction: ">", Carry: 2, Drops: []int{2}, Coords: "c4"}
 	testFour.IsBlackTurn = false
 
@@ -729,6 +740,7 @@ func TestCapstoneStomping(t *testing.T) {
 	testFive.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
 	//d4
 	testFive.GameBoard[3][3] = Stack{[]Piece{blackCap}}
+	testFive.TurnHistory = append(testFive.TurnHistory, Placement{}, Placement{})
 	testFiveMove := Movement{Direction: ">", Carry: 1, Drops: []int{1}, Coords: "c4"}
 	testFive.IsBlackTurn = false
 
@@ -748,7 +760,6 @@ func TestCapstoneStomping(t *testing.T) {
 
 	for _, c := range testCases {
 		err := c.Game.MoveStack(c.Move)
-		// fmt.Printf("resulting stack: %v\n", c.StompedStack)
 		if reflect.DeepEqual(c.MoveErr, err) != true {
 			t.Errorf("wanted error '%v', got '%v'", c.MoveErr, err)
 		}
@@ -835,6 +846,7 @@ func TestMoveHandler(t *testing.T) {
 	testGame.GameBoard[2][3] = Stack{[]Piece{whiteCap, blackFlat, whiteFlat}}
 	testGame.BlackPlayer = "testBlack"
 	testGame.WhitePlayer = "testWhite"
+	testGame.TurnHistory = append(testGame.TurnHistory, Placement{}, Placement{})
 	testGame.IsBlackTurn = false
 
 	desiredBoard := makeGameBoard(5)
@@ -876,6 +888,59 @@ func TestMoveHandler(t *testing.T) {
 			t.Errorf("board problem: \nwanted %v\n   got %v\n", c.game.GameBoard, postMoveGame.GameBoard)
 		}
 	}
+}
+
+func TestFirstTwoMoves(t *testing.T) {
+
+	testGame, _ := MakeGame(5)
+	testGame.BlackPlayer = "testBlack"
+	testGame.WhitePlayer = "testWhite"
+	testGame.IsBlackTurn = true
+
+	// testWhite := TakPlayer{Username: "testWhite"}
+	testBlack := TakPlayer{Username: "testBlack"}
+
+	mockEnv := DBenv{db: &mockDB{
+		takgame:    *testGame,
+		takplayer:  testBlack,
+		playername: "testBlack",
+	}}
+
+	testCases := []struct {
+		place Placement
+		resp  string
+		code  int
+	}{
+		{Placement{Piece: Piece{Color: Black, Orientation: Wall}, Coords: "a2"}, "problem placing piece at a2: bad placement request: first two placements must be of the opponent's color\n", 409},
+		{Placement{Piece: Piece{Color: White, Orientation: Wall}, Coords: "a2"}, "", 200},
+	}
+
+	for _, c := range testCases {
+		playerToken := generateJWT(&(testBlack), "test")
+		loginResp := TakJWT{}
+		json.Unmarshal(playerToken, &loginResp)
+		placement, _ := json.Marshal(c.place)
+		rec := httptest.NewRecorder()
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/action/place/%v", testGame.GameID.String()), bytes.NewBuffer(placement))
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
+
+		genRouter(&mockEnv).ServeHTTP(rec, req)
+
+		resp := rec.Result()
+		body, _ := ioutil.ReadAll(resp.Body)
+		//
+		if !isJSON(string(body)) {
+			if string(body) != c.resp {
+				t.Errorf("Wanted response '%v', but got '%v'", c.resp, string(body))
+			}
+		} else {
+
+		}
+		if resp.StatusCode != c.code {
+			t.Errorf("Wanted return code %v, got %v", c.code, resp.StatusCode)
+		}
+	}
+
 }
 
 func isJSON(s string) bool {

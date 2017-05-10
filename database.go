@@ -54,7 +54,7 @@ func InitSQLiteDB(dataSourceName string) (*DB, error) {
 // StoreTakGame puts a given game into the database
 func (db *DB) StoreTakGame(tg *TakGame) error {
 	textGame, _ := json.Marshal(tg)
-	// this clever little two step handles INSERT OR UPDATE in sqlite3 so that one can store an existing game and have it update the row in the db
+	// this clever little two step handles INSERT OR UPDATE in sqlite3 so that one can store an existing game and/or have it update an existing row in the db
 	// http://stackoverflow.com/questions/15277373/sqlite-upsert-update-or-insert
 	db.Exec("UPDATE games SET guid=?, isOver=?, isPublic=?, hasStarted=?, gameBlob=? WHERE guid=?", tg.GameID, tg.GameOver, tg.IsPublic, tg.HasStarted, textGame, tg.GameID)
 	_, err := db.Exec("INSERT INTO games(guid, isOver, isPublic, hasStarted, gameBlob) SELECT ?, ?, ?, ?, ? WHERE (SELECT CHANGES() = 0)", tg.GameID, tg.GameOver, tg.IsPublic, tg.HasStarted, textGame)
@@ -86,10 +86,6 @@ func (db *DB) RetrieveTakGame(id uuid.UUID) (*TakGame, error) {
 // StorePlayer puts a given player into the database
 func (db *DB) StorePlayer(p *TakPlayer) error {
 	pg, _ := json.Marshal(p.PlayedGames)
-
-	// this clever little two step handles INSERT OR UPDATE in sqlite3 so that one can store an existing player or have it update an existing one
-	// http://stackoverflow.com/questions/15277373/sqlite-upsert-update-or-insert
-
 	db.Exec("UPDATE players SET guid=?, username=?, hash=?, playedGames=? WHERE guid=?", p.PlayerID, p.Username, p.passwordHash, pg, p.PlayerID)
 	_, err := db.Exec("INSERT INTO players(guid, username, hash, playedGames) SELECT ?, ?, ?, ? WHERE (SELECT CHANGES() = 0)", p.PlayerID, p.Username, p.passwordHash, pg)
 
@@ -117,7 +113,7 @@ func (db *DB) RetrievePlayer(name string) (*TakPlayer, error) {
 		log.Fatal(queryErr)
 	}
 
-	// json.Unmarshal did unexpected things when presented with an empty column. workaround.
+	// json.Unmarshal does unexpected things when presented with an empty i.e. NULL column. workaround.
 	if playedGames.String != "" {
 		if unmarshalError := json.Unmarshal([]byte(playedGames.String), &npg); unmarshalError != nil {
 			return nil, fmt.Errorf("problem decoding played games: %v", playedGames.String)

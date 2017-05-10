@@ -1,3 +1,13 @@
+// Package classification GoTak server
+//
+// meant to provide a running service to adjudicate games of Tak.
+//     Schemes: https
+//     Host: localhost
+//     BasePath: /
+//     Version: 0.0.1
+//     License: MIT http://opensource.org/licenses/MIT
+//     Contact: Adam Hirsch <gotak@quakerporn.com>
+// swagger:meta
 package main
 
 import (
@@ -33,6 +43,7 @@ var opts struct {
 	LoginDays int    `long:"logindays" description:"duration of time a JWT token is valid"`
 }
 
+//go:generate swagger generate spec
 func init() {
 
 	// read in the configuration file
