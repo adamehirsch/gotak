@@ -22,6 +22,10 @@ func (tg *TakGame) PlacePiece(p Placement) error {
 		return fmt.Errorf("game over: %v", winner)
 	}
 
+	if tg.WhitePlayer == "" || tg.BlackPlayer == "" {
+		return errors.New("Can't start playing with an empty seat")
+	}
+
 	if err := tg.ValidatePlacement(p); err != nil {
 		return fmt.Errorf("bad placement request: %v", err)
 	}
@@ -57,7 +61,9 @@ func (tg *TakGame) MoveStack(m Movement) error {
 		}
 		return fmt.Errorf("game over: %v", winner)
 	}
-
+	if tg.WhitePlayer == "" || tg.BlackPlayer == "" {
+		return errors.New("Can't start playing with an empty seat")
+	}
 	if err := tg.ValidateMovement(m); err != nil {
 		return fmt.Errorf("invalid move: %v", err)
 	}

@@ -57,13 +57,13 @@ type Movement struct {
 }
 
 // TakPlayer describes a human player
+// swagger:model
 type TakPlayer struct {
 	Username     string      `json:"username"`
 	PlayerID     uuid.UUID   `json:"playerID"`
 	PlayedGames  []uuid.UUID `json:"playedGames"`
 	passwordHash []byte
-	// I don't like having to have the password exported. TODO: is this actually a problem? Password is explicitly not saved in the db store
-	Password string
+	Password     string `json:"password"`
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.

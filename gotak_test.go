@@ -139,6 +139,8 @@ func TestNoPlacementOnOccupiedSquare(t *testing.T) {
 	testBoard.IsBlackTurn = false
 	// let's just pretend we've got a longer turn history already in place
 	testBoard.TurnHistory = append(testBoard.TurnHistory, Movement{}, Placement{})
+	testBoard.WhitePlayer = "testWhite"
+	testBoard.BlackPlayer = "testBlack"
 	log.Debug(fmt.Sprintf("turnhistory length: %v", len(testBoard.TurnHistory)))
 
 	cases := []struct {
@@ -177,6 +179,8 @@ func TestTurnTaking(t *testing.T) {
 	testBoard.GameBoard[3][1] = Stack{[]Piece{whiteCap, blackFlat}}
 	testBoard.IsBlackTurn = true
 	testBoard.TurnHistory = append(testBoard.TurnHistory, Movement{}, Placement{})
+	testBoard.WhitePlayer = "testWhite"
+	testBoard.BlackPlayer = "testBlack"
 
 	// case-driven testing: The Bomb
 	cases := []struct {
@@ -217,6 +221,8 @@ func TestEmptySquareDetection(t *testing.T) {
 	testGame.GameBoard[2][2] = Stack{[]Piece{whiteWall}}
 	testGame.IsBlackTurn = false
 	testGame.TurnHistory = append(testGame.TurnHistory, Movement{}, Placement{})
+	testGame.WhitePlayer = "testWhite"
+	testGame.BlackPlayer = "testBlack"
 
 	cases := []struct {
 		coords string
@@ -618,6 +624,8 @@ func TestTooManyPieces(t *testing.T) {
 	testOne.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testOne.IsBlackTurn = false
 	testOne.TurnHistory = append(testOne.TurnHistory, Placement{}, Placement{})
+	testOne.WhitePlayer = "testWhite"
+	testOne.BlackPlayer = "testBlack"
 
 	testTwo, _ := MakeGame(3)
 	testTwo.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
@@ -628,6 +636,8 @@ func TestTooManyPieces(t *testing.T) {
 	testTwo.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testTwo.IsBlackTurn = true
 	testTwo.TurnHistory = append(testTwo.TurnHistory, Placement{}, Placement{})
+	testTwo.WhitePlayer = "testWhite"
+	testTwo.BlackPlayer = "testBlack"
 
 	testThree, _ := MakeGame(3)
 	testThree.GameBoard[0][1] = Stack{[]Piece{whiteWall, blackFlat, whiteFlat}}
@@ -637,6 +647,8 @@ func TestTooManyPieces(t *testing.T) {
 	testThree.GameBoard[2][1] = Stack{[]Piece{whiteWall, whiteFlat}}
 	testThree.GameBoard[2][2] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
 	testThree.IsBlackTurn = true
+	testThree.WhitePlayer = "testWhite"
+	testThree.BlackPlayer = "testBlack"
 
 	testCases := []struct {
 		game      *TakGame
@@ -707,6 +719,8 @@ func TestCapstoneStomping(t *testing.T) {
 	testOne.TurnHistory = append(testOne.TurnHistory, Placement{}, Placement{})
 	testOneMove := Movement{Direction: "+", Carry: 2, Drops: []int{1, 1}, Coords: "a1"}
 	testOne.IsBlackTurn = false
+	testOne.WhitePlayer = "testWhite"
+	testOne.BlackPlayer = "testBlack"
 
 	testTwo, _ := MakeGame(4)
 	testTwo.GameBoard[0][0] = Stack{[]Piece{blackWall, whiteFlat, blackFlat}}
@@ -714,6 +728,8 @@ func TestCapstoneStomping(t *testing.T) {
 	testTwo.TurnHistory = append(testTwo.TurnHistory, Placement{}, Placement{})
 	testTwoMove := Movement{Direction: "<", Carry: 1, Drops: []int{1}, Coords: "b1"}
 	testTwo.IsBlackTurn = false
+	testTwo.WhitePlayer = "testWhite"
+	testTwo.BlackPlayer = "testBlack"
 
 	testThree, _ := MakeGame(5)
 	//c4
@@ -721,6 +737,8 @@ func TestCapstoneStomping(t *testing.T) {
 	//d4
 	testThree.GameBoard[3][3] = Stack{[]Piece{blackWall}}
 	testThree.TurnHistory = append(testThree.TurnHistory, Placement{}, Placement{})
+	testThree.WhitePlayer = "testWhite"
+	testThree.BlackPlayer = "testBlack"
 
 	testThreeMove := Movement{Direction: ">", Carry: 2, Drops: []int{1, 1}, Coords: "c4"}
 	testThree.IsBlackTurn = false
@@ -734,6 +752,8 @@ func TestCapstoneStomping(t *testing.T) {
 
 	testFourMove := Movement{Direction: ">", Carry: 2, Drops: []int{2}, Coords: "c4"}
 	testFour.IsBlackTurn = false
+	testFour.WhitePlayer = "testWhite"
+	testFour.BlackPlayer = "testBlack"
 
 	testFive, _ := MakeGame(5)
 	//c4
@@ -743,6 +763,8 @@ func TestCapstoneStomping(t *testing.T) {
 	testFive.TurnHistory = append(testFive.TurnHistory, Placement{}, Placement{})
 	testFiveMove := Movement{Direction: ">", Carry: 1, Drops: []int{1}, Coords: "c4"}
 	testFive.IsBlackTurn = false
+	testFive.WhitePlayer = "testWhite"
+	testFive.BlackPlayer = "testBlack"
 
 	testCases := []struct {
 		Game         *TakGame

@@ -1,0 +1,248 @@
+FORMAT: 1A
+HOST: http://polls.apiblueprint.org/
+
+# gotak
+
+gotak is a game server written in Golang, that implements the board game Tak, by James Garfield and Patrick Rothfuss.
+
+## Registering a new user [/register]
+
+### Register [POST]
+
++ Request (application/json)
+
+        {
+            "username": "testuser",
+            "password": "foobar"
+        }
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+                "jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTUwNzQxNTcsInVzZXIiOiJhZGFtZWhpcnNjaCJ9.dtofjaA_mvJjUFkAq2iT6rx_dndDp1pv7fs-M3tH9kQ",
+                "message": "new player testuser successfully created"
+            }
+
+## Logging in [/login]
+
+### Log In [POST]
+
++ Request (application/json)
+
+        {
+            "username": "testuser",
+            "password": "foobar"
+        }
+
++ Response 200 (application/json)
+
+  Returns both a JWT auth token and a message
+  
+    + Body
+
+            {
+                "jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE0OTUwNzQxNTcsInVzZXIiOiJhZGFtZWhpcnNjaCJ9.dtofjaA_mvJjUFkAq2iT6rx_dndDp1pv7fs-M3tH9kQ",
+                "message": "successfully logged in"
+            }
+
+
+## Creating a New game [/newgame/{size}]
+
+### Making a new game [GET]
++ Request
+
+    + Headers
+
+            Authentication: Bearer JWT
+
++ Parameters
+    + size: `3` (enum[number], required) - size of the gameboard
+        +Members
+            +`3`
+            + `4`
+            + `5`
+            + `6`
+            + `8`
+
++ Response 200 (application/json)
+
+    + Body
+
+            {
+            "blackPlayer": "",
+            "blackWinner": false,
+            "drawGame": false,
+            "flatWin": false,
+            "gameBoard": [
+                [
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    }
+                ],
+                [
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    }
+                ],
+                [
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    }
+                ],
+                [
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    },
+                    {
+                        "Pieces": null
+                    }
+                ]
+            ],
+            "gameID": "957e3e87-54c6-417e-a6a6-cfa874c14293",
+            "gameOver": false,
+            "gameOwner": "adamehirsch",
+            "gameWinner": "",
+            "hasStarted": false,
+            "isBlackTurn": false,
+            "isPublic": false,
+            "moveCount": 0,
+            "roadWin": false,
+            "size": 4,
+            "startTime": "0001-01-01T00:00:00Z",
+            "turnHistory": null,
+            "whitePlayer": "",
+            "whiteWinner": false,
+            "winTime": "0001-01-01T00:00:00Z",
+            "winningPath": null
+            }
+
+## Claiming a seat at a game [/takeseat/{gameID}]
+
+### Taking a seat [GET]
+
++ Request
+
+    + Headers
+
+            Authentication: Bearer JWT
+
++ Parameters
+    + gameID - (string, required) - UUID for a specific game
+
++ Response 200 (application/json)
+
+            {
+                "blackPlayer": "",
+                "blackWinner": false,
+                "drawGame": false,
+                "flatWin": false,
+                "gameBoard": [
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ]
+                ],
+                "gameID": "957e3e87-54c6-417e-a6a6-cfa874c14293",
+                "gameOver": false,
+                "gameOwner": "adamehirsch",
+                "gameWinner": "",
+                "hasStarted": false,
+                "isBlackTurn": false,
+                "isPublic": false,
+                "moveCount": 0,
+                "roadWin": false,
+                "size": 4,
+                "startTime": "0001-01-01T00:00:00Z",
+                "turnHistory": null,
+                "whitePlayer": "adamehirsch",
+                "whiteWinner": false,
+                "winTime": "0001-01-01T00:00:00Z",
+                "winningPath": null
+            }

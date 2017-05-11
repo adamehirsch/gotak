@@ -251,6 +251,18 @@ func (env *DBenv) Login(w http.ResponseWriter, r *http.Request) *WebError {
 
 // Register handles new players
 func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
+	// swagger:route POST /register Register
+	//
+	// registers a new user
+	//
+	//     Consumes:
+	//     - application/json
+	//     Produces:
+	//     - application/json
+	//     Responses:
+	//       200: TakJWT
+	//       422: "WebError"
+	//       500: WebError
 	var newPlayer TakPlayer
 
 	// read in only up to 1MB of data from the client. Come on, now.
@@ -278,7 +290,7 @@ func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
 	newPlayer.passwordHash = HashPassword(newPlayer.Password)
 
 	if err := env.db.StorePlayer(&newPlayer); err != nil {
-		log.Fatal(err)
+		return &WebError{err, fmt.Sprintf("storage problem: %v", err), http.StatusInternalServerError}
 	}
 
 	tokenBytes := generateJWT(&newPlayer, fmt.Sprintf("new player %v successfully created", newPlayer.Username))
@@ -353,8 +365,8 @@ func (env *DBenv) TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
 	return nil
 }
 
-// swagger:parameters TakeSeat ShowGame Action
 // GameIDParam is a uuid key specifying one TakGame
+// swagger:parameters TakeSeat ShowGame Action
 type GameIDParam struct {
 	// gameID is useful
 	// in: path
