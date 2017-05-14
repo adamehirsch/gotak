@@ -897,7 +897,7 @@ func TestMoveHandler(t *testing.T) {
 		json.Unmarshal(playerToken, &loginResp)
 		movement, _ := json.Marshal(c.move)
 		rec := httptest.NewRecorder()
-		req, _ := http.NewRequest("PUT", fmt.Sprintf("/action/move/%v", testGame.GameID.String()), bytes.NewBuffer(movement))
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/action/move/%v", testGame.GameID.String()), bytes.NewBuffer(movement))
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
 
 		genRouter(&mockEnv).ServeHTTP(rec, req)
@@ -943,7 +943,7 @@ func TestFirstTwoMoves(t *testing.T) {
 		json.Unmarshal(playerToken, &loginResp)
 		placement, _ := json.Marshal(c.place)
 		rec := httptest.NewRecorder()
-		req, _ := http.NewRequest("PUT", fmt.Sprintf("/action/place/%v", testGame.GameID.String()), bytes.NewBuffer(placement))
+		req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/action/place/%v", testGame.GameID.String()), bytes.NewBuffer(placement))
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
 
 		genRouter(&mockEnv).ServeHTTP(rec, req)
@@ -962,9 +962,43 @@ func TestFirstTwoMoves(t *testing.T) {
 			t.Errorf("Wanted return code %v, got %v", c.code, resp.StatusCode)
 		}
 	}
-
 }
 
+func TestNewGameHandler(t *testing.T) {
+
+	testBlack := TakPlayer{Username: "testBlack"}
+
+	mockEnv := DBenv{db: &mockDB{
+		takplayer:  testBlack,
+		playername: "testBlack",
+	}}
+
+	testCases := []struct {
+		size int
+		code int
+	}{
+		{4, 200},
+		{9, 500},
+	}
+
+	for _, c := range testCases {
+		playerToken := generateJWT(&(testBlack), "test")
+		loginResp := TakJWT{}
+		json.Unmarshal(playerToken, &loginResp)
+		rec := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/v1/newgame/%v", c.size), nil)
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
+
+		genRouter(&mockEnv).ServeHTTP(rec, req)
+
+		resp := rec.Result()
+		if resp.StatusCode != c.code {
+			t.Errorf("Wanted return code %v, got %v", c.code, resp.StatusCode)
+		}
+	}
+}
+
+// isJSON just checks to see whether a string is valid JSON
 func isJSON(s string) bool {
 	var js map[string]interface{}
 	return json.Unmarshal([]byte(s), &js) == nil

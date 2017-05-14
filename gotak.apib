@@ -3,7 +3,7 @@ HOST: http://polls.apiblueprint.org/
 
 # gotak
 
-gotak is a game server written in Golang, that implements the board game Tak, by James Garfield and Patrick Rothfuss.
+gotak is a game server, written in Golang, that implements the board game Tak, by James Garfield and Patrick Rothfuss.
 
 ## Registering a new user [/register]
 
@@ -38,8 +38,6 @@ gotak is a game server written in Golang, that implements the board game Tak, by
 
 + Response 200 (application/json)
 
-  Returns both a JWT auth token and a message
-  
     + Body
 
             {
@@ -50,7 +48,8 @@ gotak is a game server written in Golang, that implements the board game Tak, by
 
 ## Creating a New game [/newgame/{size}]
 
-### Making a new game [GET]
+### Making a new game [POST]
+
 + Request
 
     + Headers
@@ -58,13 +57,15 @@ gotak is a game server written in Golang, that implements the board game Tak, by
             Authentication: Bearer JWT
 
 + Parameters
-    + size: `3` (enum[number], required) - size of the gameboard
-        +Members
-            +`3`
-            + `4`
-            + `5`
-            + `6`
-            + `8`
+
+    + size: 4 (enum[number], required) - size of the gameboard
+
+            + Members
+                `3`
+                `4`
+                `5`
+                `6`
+                `8`
 
 + Response 200 (application/json)
 
@@ -162,7 +163,7 @@ gotak is a game server written in Golang, that implements the board game Tak, by
             Authentication: Bearer JWT
 
 + Parameters
-    + gameID - (string, required) - UUID for a specific game
+    + gameID '957e3e87-54c6-417e-a6a6-cfa874c14293' - (string, required) - UUID for a specific game
 
 + Response 200 (application/json)
 
@@ -246,3 +247,312 @@ gotak is a game server written in Golang, that implements the board game Tak, by
                 "winTime": "0001-01-01T00:00:00Z",
                 "winningPath": null
             }
+
+## Showing a game [/takeseat/{gameID}]
+
+### Displaying a game's current state [GET]
+
++ Request
+
+    + Headers
+
+            Authentication: Bearer JWT
+
++ Parameters
+    + gameID '957e3e87-54c6-417e-a6a6-cfa874c14293' - (string, required) - UUID for a specific game
+
++ Response 200 (application/json)
+
+            {
+                "blackPlayer": "",
+                "blackWinner": false,
+                "drawGame": false,
+                "flatWin": false,
+                "gameBoard": [
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ]
+                ],
+                "gameID": "957e3e87-54c6-417e-a6a6-cfa874c14293",
+                "gameOver": false,
+                "gameOwner": "adamehirsch",
+                "gameWinner": "",
+                "hasStarted": false,
+                "isBlackTurn": false,
+                "isPublic": false,
+                "moveCount": 0,
+                "roadWin": false,
+                "size": 4,
+                "startTime": "0001-01-01T00:00:00Z",
+                "turnHistory": null,
+                "whitePlayer": "adamehirsch",
+                "whiteWinner": false,
+                "winTime": "0001-01-01T00:00:00Z",
+                "winningPath": null
+            }
+
+
+## Placing a piece [/action/place/{gameID}]
+
+### Placing [PUT]
+
+    + Request
+
+        + Headers
+
+                Authentication: Bearer JWT
+
+        + Parameters
+
+            + gameID '957e3e87-54c6-417e-a6a6-cfa874c14293' - (string, required) - UUID for a specific game
+
+        + Body
+
+            {
+              "coords": "b2",
+              "piece": {
+                 "color": "white",
+                 "orientation": "flat"
+               }
+             }
+
+    + Response 200 (application/json)
+
+        + Body
+
+                {
+                "blackPlayer": "",
+                "blackWinner": false,
+                "drawGame": false,
+                "flatWin": false,
+                "gameBoard": [
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ]
+                ],
+                "gameID": "957e3e87-54c6-417e-a6a6-cfa874c14293",
+                "gameOver": false,
+                "gameOwner": "adamehirsch",
+                "gameWinner": "",
+                "hasStarted": false,
+                "isBlackTurn": false,
+                "isPublic": false,
+                "moveCount": 0,
+                "roadWin": false,
+                "size": 4,
+                "startTime": "0001-01-01T00:00:00Z",
+                "turnHistory": null,
+                "whitePlayer": "",
+                "whiteWinner": false,
+                "winTime": "0001-01-01T00:00:00Z",
+                "winningPath": null
+                }
+
+## Placing a piece [/action/move/{gameID}]
+
+### Moving a stack [PUT]
+
+    + Request
+
+        + Headers
+
+                Authentication: Bearer JWT
+
+        + Parameters
+
+            + gameID '957e3e87-54c6-417e-a6a6-cfa874c14293' - (string, required) - UUID for a specific game
+
+        + Body
+
+            {"coords":"a1","direction":"+","carry":5,"drops": [2,1,2]}
+
+    + Response 200 (application/json)
+
+        + Body
+
+                {
+                "blackPlayer": "",
+                "blackWinner": false,
+                "drawGame": false,
+                "flatWin": false,
+                "gameBoard": [
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ],
+                    [
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        },
+                        {
+                            "Pieces": null
+                        }
+                    ]
+                ],
+                "gameID": "957e3e87-54c6-417e-a6a6-cfa874c14293",
+                "gameOver": false,
+                "gameOwner": "adamehirsch",
+                "gameWinner": "",
+                "hasStarted": false,
+                "isBlackTurn": false,
+                "isPublic": false,
+                "moveCount": 0,
+                "roadWin": false,
+                "size": 4,
+                "startTime": "0001-01-01T00:00:00Z",
+                "turnHistory": null,
+                "whitePlayer": "",
+                "whiteWinner": false,
+                "winTime": "0001-01-01T00:00:00Z",
+                "winningPath": null
+                }

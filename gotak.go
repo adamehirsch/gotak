@@ -115,9 +115,9 @@ func main() {
 	defer db.Close()
 
 	// set up the live database behind a Datastore interface for our methods to run against
-	env := &DBenv{db}
+	sqliteEnv := &DBenv{db}
 	// Bind to a port and pass our router in, logging every request to Stdout
-	http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, genRouter(env)))
+	http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, genRouter(sqliteEnv)))
 
 }
 
@@ -125,12 +125,15 @@ func genRouter(env *DBenv) *mux.Router {
 	r := mux.NewRouter()
 	checkedChain := alice.New(checkJWTsignature.Handler)
 	r.HandleFunc("/", SlashHandler)
-	r.Handle("/login", errorHandler(env.Login)).Methods("POST")
-	r.Handle("/register", errorHandler(env.Register)).Methods("POST")
-	r.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(env.NewGame)))
-	r.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(env.ShowGame)))
-	r.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(env.TakeSeat)))
-	r.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(env.Action))).Methods("PUT")
+
+	api := r.PathPrefix("/v1").Subrouter()
+	api.Handle("/login", errorHandler(env.Login)).Methods("POST")
+	api.Handle("/register", errorHandler(env.Register)).Methods("POST")
+	api.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(env.NewGame))).Methods("POST")
+	api.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(env.ShowGame)))
+	api.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(env.TakeSeat)))
+	api.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(env.Action))).Methods("PUT")
+
 	return r
 }
 
