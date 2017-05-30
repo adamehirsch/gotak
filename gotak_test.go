@@ -773,10 +773,10 @@ func TestCapstoneStomping(t *testing.T) {
 		StompedStack *Stack
 		DesiredStack Stack
 	}{
-		{testOne, errors.New("invalid move: Can't flatten standing stone at a2: no capstone on moving stack"), testOneMove, &testOne.GameBoard[0][1], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
+		{testOne, errors.New("invalid move: Can't flatten wall at a2: no capstone on moving stack"), testOneMove, &testOne.GameBoard[0][1], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
 		{testTwo, nil, testTwoMove, &testTwo.GameBoard[0][0], Stack{Pieces: []Piece{Piece{White, Capstone}, Piece{Black, Flat}, Piece{White, Flat}, Piece{Black, Flat}}}},
-		{testThree, errors.New("invalid move: Can't flatten standing stone at d4: not on last drop of move sequence"), testThreeMove, &testThree.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
-		{testFour, errors.New("invalid move: Only allowed to flatten standing stone at d4 with 1 capstone, not 2 pieces"), testFourMove, &testFour.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
+		{testThree, errors.New("invalid move: Can't flatten wall at d4: not on last drop of move sequence"), testThreeMove, &testThree.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
+		{testFour, errors.New("invalid move: Only allowed to flatten wall at d4 with 1 capstone, not 2 pieces"), testFourMove, &testFour.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Wall}}}},
 		{testFive, errors.New("invalid move: Movement can't flatten a capstone at d4"), testFiveMove, &testFive.GameBoard[3][3], Stack{Pieces: []Piece{Piece{Black, Capstone}}}},
 	}
 
@@ -897,7 +897,7 @@ func TestMoveHandler(t *testing.T) {
 		json.Unmarshal(playerToken, &loginResp)
 		movement, _ := json.Marshal(c.move)
 		rec := httptest.NewRecorder()
-		req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/action/move/%v", testGame.GameID.String()), bytes.NewBuffer(movement))
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/v1/game/%v/move", testGame.GameID.String()), bytes.NewBuffer(movement))
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
 
 		genRouter(&mockEnv).ServeHTTP(rec, req)
@@ -943,7 +943,7 @@ func TestFirstTwoMoves(t *testing.T) {
 		json.Unmarshal(playerToken, &loginResp)
 		placement, _ := json.Marshal(c.place)
 		rec := httptest.NewRecorder()
-		req, _ := http.NewRequest("PUT", fmt.Sprintf("/v1/action/place/%v", testGame.GameID.String()), bytes.NewBuffer(placement))
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/v1/game/%v/place", testGame.GameID.String()), bytes.NewBuffer(placement))
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
 
 		genRouter(&mockEnv).ServeHTTP(rec, req)
@@ -986,7 +986,7 @@ func TestNewGameHandler(t *testing.T) {
 		loginResp := TakJWT{}
 		json.Unmarshal(playerToken, &loginResp)
 		rec := httptest.NewRecorder()
-		req, _ := http.NewRequest("POST", fmt.Sprintf("/v1/newgame/%v", c.size), nil)
+		req, _ := http.NewRequest("POST", fmt.Sprintf("/v1/game/new/%v", c.size), nil)
 		req.Header.Set("Authorization", fmt.Sprintf("Bearer %v", loginResp.JWT))
 
 		genRouter(&mockEnv).ServeHTTP(rec, req)
@@ -994,6 +994,32 @@ func TestNewGameHandler(t *testing.T) {
 		resp := rec.Result()
 		if resp.StatusCode != c.code {
 			t.Errorf("Wanted return code %v, got %v", c.code, resp.StatusCode)
+		}
+	}
+}
+
+func TestCanShow(t *testing.T) {
+	tg, _ := MakeGame(4)
+	tg.BlackPlayer = "testBlack"
+	tg.WhitePlayer = "testWhite"
+	tg.GameOwner = "testOwner"
+
+	testCases := []struct {
+		requester string
+		canShow   bool
+	}{
+		{"testBlack", true},
+		{"testWhite", true},
+		{"testOwner", true},
+		{"shouldFail", false},
+	}
+
+	for _, c := range testCases {
+		testPlayer := TakPlayer{
+			Username: c.requester,
+		}
+		if tg.CanShow(&testPlayer) != c.canShow {
+			t.Errorf("Wanted %v for player %v, got %v", c.canShow, c.requester, tg.CanShow(&testPlayer))
 		}
 	}
 }

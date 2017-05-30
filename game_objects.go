@@ -23,7 +23,7 @@ const (
 type Piece struct {
 	// one of "black" or "white"
 	Color string `json:"color"`
-	// Type can be one of "flat", "standing", or "capstone"
+	// Type can be one of "flat", "wall", or "capstone"
 	Orientation string `json:"orientation"`
 }
 
@@ -57,7 +57,6 @@ type Movement struct {
 }
 
 // TakPlayer describes a human player
-// swagger:model
 type TakPlayer struct {
 	Username     string      `json:"username"`
 	PlayerID     uuid.UUID   `json:"playerID"`
@@ -67,12 +66,8 @@ type TakPlayer struct {
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
-//
-// swagger:model
 type TakGame struct {
 	// the id for this game
-	//
-	// required: true
 	GameID uuid.UUID `json:"gameID"`
 	// the gameboard for this game, represented as stacks of Pieces
 	GameBoard [][]Stack `json:"gameBoard"`

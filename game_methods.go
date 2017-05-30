@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	log "github.com/Sirupsen/logrus"
 )
 
 // PlacePiece should put a Piece at a valid board position and return the updated board
@@ -35,16 +33,11 @@ func (tg *TakGame) PlacePiece(p Placement) error {
 	// Place That Piece! (top of the piece stacks is at position 0)
 	square.Pieces = append([]Piece{p.Piece}, square.Pieces...)
 
-	// Record the placemnt!
+	// Record the placement!
 	tg.TurnHistory = append(tg.TurnHistory, p)
+	// flip the turn indicator
+	tg.IsBlackTurn = (tg.IsBlackTurn == false)
 
-	if tg.IsBlackTurn == true {
-		log.Debug("is now white turn")
-		tg.IsBlackTurn = false
-	} else {
-		log.Debug("is now black turn")
-		tg.IsBlackTurn = true
-	}
 	if tg.IsGameOver() {
 		tg.WhoWins()
 	}
@@ -72,12 +65,12 @@ func (tg *TakGame) MoveStack(m Movement) error {
 	x, y, _ := tg.TranslateCoords(m.Coords)
 
 	// pointer to the square where the movement originates
-	square := &tg.GameBoard[x][y]
+	origin := &tg.GameBoard[x][y]
 
 	carriedPieces := tg.FindMovingPieces(m)
 
 	// remove the carried pieces off the top of the origin stack
-	square.Pieces = square.Pieces[m.Carry:]
+	origin.Pieces = origin.Pieces[m.Carry:]
 
 	// set up for the sequence of next squares the move will cover
 	var nextSquare *Stack
@@ -102,7 +95,7 @@ func (tg *TakGame) MoveStack(m Movement) error {
 			return fmt.Errorf("can't determine movement direction '%v'", m.Direction)
 		}
 
-		// if we're on the very last drop, there's a stack on the nextSquare, and we're down to one carriedPiece
+		// if we're on the very last drop, there's a stack on the nextSquare, and we're down to one carriedPiece, and it's a capstone, it'll squash a wall.
 		if k == len(m.Drops)-1 && len(nextSquare.Pieces) > 0 && len(carriedPieces) == 1 {
 			if carriedPieces[0].Orientation == Capstone && nextSquare.Pieces[0].Orientation == Wall {
 				nextSquare.Pieces[0].Orientation = Flat
@@ -114,13 +107,10 @@ func (tg *TakGame) MoveStack(m Movement) error {
 
 	}
 
-	// record the move in the game's turn history
+	// record the move in the game's turn history, and flip the turn indicator
 	tg.TurnHistory = append(tg.TurnHistory, m)
-	if tg.IsBlackTurn == true {
-		tg.IsBlackTurn = false
-	} else {
-		tg.IsBlackTurn = true
-	}
+	tg.IsBlackTurn = (tg.IsBlackTurn == false)
+
 	return nil
 }
 
@@ -255,7 +245,7 @@ func (tg *TakGame) WallInWay(m Movement) error {
 		hasCapstone = true
 	}
 
-	// at each square along the carry path, check for a standing stone
+	// at each square along the carry path, check for a wall
 	for move := 1; move <= len(m.Drops); move++ {
 		var xplace, yplace int
 		switch m.Direction {
@@ -286,13 +276,13 @@ func (tg *TakGame) WallInWay(m Movement) error {
 				return fmt.Errorf("Movement can't flatten a capstone at %v", humanCoords)
 			case Wall:
 				if hasCapstone == false {
-					return fmt.Errorf("Can't flatten standing stone at %v: no capstone on moving stack", humanCoords)
+					return fmt.Errorf("Can't flatten wall at %v: no capstone on moving stack", humanCoords)
 				}
 				if m.Drops[move-1] != 1 {
-					return fmt.Errorf("Only allowed to flatten standing stone at %v with 1 capstone, not %v pieces", humanCoords, m.Drops[move-1])
+					return fmt.Errorf("Only allowed to flatten wall at %v with 1 capstone, not %v pieces", humanCoords, m.Drops[move-1])
 				}
 				if move != len(m.Drops) {
-					return fmt.Errorf("Can't flatten standing stone at %v: not on last drop of move sequence", humanCoords)
+					return fmt.Errorf("Can't flatten wall at %v: not on last drop of move sequence", humanCoords)
 				}
 				// if it's the last stop on the move, the last drop order is one piece, and the last dropped piece is a capstone, we're good
 				return nil

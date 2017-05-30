@@ -1,19 +1,8 @@
-// Package classification GoTak server
-//
-// meant to provide a running service to adjudicate games of Tak.
-//     Schemes: https
-//     Host: localhost
-//     BasePath: /
-//     Version: 0.0.1
-//     License: MIT http://opensource.org/licenses/MIT
-//     Contact: Adam Hirsch <gotak@quakerporn.com>
-// swagger:meta
 package main
 
 import (
 	"fmt"
 	"net/http"
-	"net/http/pprof"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
@@ -43,7 +32,6 @@ var opts struct {
 	LoginDays int    `long:"logindays" description:"duration of time a JWT token is valid"`
 }
 
-//go:generate swagger generate spec
 func init() {
 
 	// read in the configuration file
@@ -97,6 +85,7 @@ func init() {
 		log.SetLevel(log.DebugLevel)
 		fmt.Printf("Provided options: %+v", opts)
 		go func() {
+			// kick off a profiling listener
 			log.Println(http.ListenAndServe("localhost:6060", nil))
 		}()
 	} else {
@@ -108,14 +97,14 @@ func init() {
 func main() {
 
 	// ensure the database is setup
-	db, err := InitSQLiteDB(opts.DBfile)
+	sqliteDB, err := InitSQLiteDB(opts.DBfile)
 	if err != nil {
 		log.Panicf("problem initializing db connection: %v", err)
 	}
-	defer db.Close()
+	defer sqliteDB.Close()
 
 	// set up the live database behind a Datastore interface for our methods to run against
-	sqliteEnv := &DBenv{db}
+	sqliteEnv := &DBenv{sqliteDB}
 	// Bind to a port and pass our router in, logging every request to Stdout
 	http.ListenAndServeTLS(":8000", sslCert, sslKey, handlers.LoggingHandler(os.Stdout, genRouter(sqliteEnv)))
 
@@ -129,24 +118,12 @@ func genRouter(env *DBenv) *mux.Router {
 	api := r.PathPrefix("/v1").Subrouter()
 	api.Handle("/login", errorHandler(env.Login)).Methods("POST")
 	api.Handle("/register", errorHandler(env.Register)).Methods("POST")
-	api.Handle("/newgame/{boardSize}", checkedChain.Then(errorHandler(env.NewGame))).Methods("POST")
-	api.Handle("/showgame/{gameID}", checkedChain.Then(errorHandler(env.ShowGame)))
-	api.Handle("/takeseat/{gameID}", checkedChain.Then(errorHandler(env.TakeSeat)))
-	api.Handle("/action/{action}/{gameID}", checkedChain.Then(errorHandler(env.Action))).Methods("PUT")
+
+	game := api.PathPrefix("/game").Subrouter()
+	game.Handle("/new/{boardSize}", checkedChain.Then(errorHandler(env.NewGame))).Methods("POST")
+	game.Handle("/{gameID}/", checkedChain.Then(errorHandler(env.ShowGame)))
+	game.Handle("/{gameID}/sit", checkedChain.Then(errorHandler(env.TakeSeat)))
+	game.Handle("/{gameID}/{action}", checkedChain.Then(errorHandler(env.Action))).Methods("POST")
 
 	return r
-}
-
-// gorilla mux requires some explicit steps to get pprof to attach to it
-func attachProfiler(router *mux.Router) {
-	router.HandleFunc("/debug/pprof/", pprof.Index)
-	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-
-	// Manually add support for paths linked to by index page at /debug/pprof/
-	router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
-	router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
-	router.Handle("/debug/pprof/block", pprof.Handler("block"))
 }

@@ -27,7 +27,7 @@ type Datastore interface {
 	PlayerExists(n string) bool
 }
 
-// DB is simply a self-contained
+// DB is simply a self-contained struct that carries a SQL-capable DB and the methods necessary to satisfy the Datastore interface requirements
 type DB struct {
 	*sql.DB
 }
