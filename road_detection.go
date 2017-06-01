@@ -165,22 +165,33 @@ func (tg *TakGame) roadCheck(s *Square, dir string, color string, pp []Coords) b
 // DrawStackTops draws a board with the winning path, if any, highlighted
 func (tg *TakGame) DrawStackTops() []string {
 
-	boardSize := tg.Size
+	return MakeTopsDiagram(tg.GameBoard, tg.WinningPath)
+
+}
+
+// MakeTopsDiagram is a helper method while working out Cartesian math that's not hanging off a TakGame
+func MakeTopsDiagram(gb GameBoard, wp WinningPath) []string {
+	boardSize := len(gb)
 	printablePath := make([][]string, boardSize)
 	for i := range printablePath {
 		printablePath[i] = make([]string, boardSize)
 	}
 
-	for _, v := range tg.WinningPath {
-		printablePath[v.X][v.Y] = "o"
+	if wp != nil {
+		for _, v := range wp {
+			printablePath[v.X][v.Y] = "o"
+		}
 	}
+
+	// start assembling an ASCII version of the board as a slice of strings
 	printableBoard := make([]string, boardSize+2)
+
 	printableBoard[0] = " " + strings.Repeat("---", boardSize)
 	// print the board from the top down
 	for y := boardSize - 1; y >= 0; y-- {
 		line := "|"
 		for x := 0; x < boardSize; x++ {
-			if len(tg.GameBoard[x][y].Pieces) == 0 {
+			if len((gb)[x][y].Pieces) == 0 {
 				line = line + " . "
 			} else {
 				highlightOpen := " "
@@ -190,7 +201,7 @@ func (tg *TakGame) DrawStackTops() []string {
 					highlightClose = ")"
 				}
 				stackTop := "B"
-				if tg.GameBoard[x][y].Pieces[0].Color == White {
+				if (gb)[x][y].Pieces[0].Color == White {
 					stackTop = "W"
 				}
 				line = line + fmt.Sprintf("%s%s%s", highlightOpen, stackTop, highlightClose)

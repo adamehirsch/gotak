@@ -20,6 +20,7 @@ import (
 )
 
 // WebError is a custom error type for reporting bad events when making an HTTP request
+// swagger:model
 type WebError struct {
 	Error   error
 	Message string
@@ -73,9 +74,8 @@ func (env *DBenv) NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(newGame); err != nil {
-		log.Println(err)
-	}
+	gamePayload, _ := json.Marshal(newGame)
+	w.Write([]byte(gamePayload))
 
 	return nil
 }
@@ -113,7 +113,9 @@ func (env *DBenv) ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 			topView := requestedGame.DrawStackTops()
 			gamePayload, _ = json.Marshal(topView)
 		} else {
+			fmt.Printf("before: %+v\n\n", requestedGame)
 			gamePayload, _ = json.Marshal(requestedGame)
+			fmt.Printf("after: %+v\n\n", requestedGame)
 		}
 		w.Write([]byte(gamePayload))
 	} else {
@@ -250,6 +252,18 @@ func (env *DBenv) Login(w http.ResponseWriter, r *http.Request) *WebError {
 
 // Register handles new players
 func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
+	// swagger:route POST /register Register
+	//
+	// registers a new user
+	//
+	//     Consumes:
+	//     - application/json
+	//     Produces:
+	//     - application/json
+	//     Responses:
+	//       200: TakJWT
+	//       422: "WebError"
+	//       500: WebError
 	var newPlayer TakPlayer
 
 	// read in only up to 1MB of data from the client. Come on, now.
@@ -277,7 +291,7 @@ func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
 	newPlayer.passwordHash = HashPassword(newPlayer.Password)
 
 	if err := env.db.StorePlayer(&newPlayer); err != nil {
-		log.Fatal(err)
+		return &WebError{err, fmt.Sprintf("storage problem: %v", err), http.StatusInternalServerError}
 	}
 
 	tokenBytes := generateJWT(&newPlayer, fmt.Sprintf("new player %v successfully created", newPlayer.Username))
@@ -290,6 +304,20 @@ func (env *DBenv) Register(w http.ResponseWriter, r *http.Request) *WebError {
 
 // TakeSeat gives an open seat in a game to a requesting player
 func (env *DBenv) TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
+	// swagger:route GET /takeseat/{gameID} TakeSeat
+	// for an authenticated user, allocates them an open seat on a specified game
+	//
+	//     Consumes:
+	//
+	//     Produces:
+	//     - application/json
+	//     Responses:
+	//       200: TakGame
+	//       404: WebError
+	// 			 406: WebError
+	//       422: WebError
+	//       500: WebError
+
 	player, err := env.authUser(r)
 	if err != nil {
 		return &WebError{err, fmt.Sprintf("problem authenticating user: %v", err), http.StatusUnprocessableEntity}
@@ -336,4 +364,43 @@ func (env *DBenv) TakeSeat(w http.ResponseWriter, r *http.Request) *WebError {
 	gamePayload, _ := json.Marshal(requestedGame)
 	w.Write([]byte(gamePayload))
 	return nil
+}
+
+// GameIDParam is a uuid key specifying one TakGame
+// swagger:parameters TakeSeat ShowGame Action
+type GameIDParam struct {
+	// gameID is useful
+	// in: path
+	GameID string `json:"gameID"`
+}
+
+// MarshalJSON is here to allow saner presentation via JSON methods
+// func (tg *TakGame) MarshalJSON() ([]byte, error) {
+// 	// copy the game so as to avoid recursively calling MarshalJSON
+// 	// thanks https://ashleyd.ws/custom-json-marshalling-in-golang/
+// 	type GameAlias TakGame
+//
+// 	return json.Marshal(&struct {
+// 		GameBoard GameBoard `json:"gameBoard"`
+// 		*GameAlias
+// 	}{
+// 		GameBoard: MakeGameBoardCartesian(&tg.GameBoard),
+// 		GameAlias: (*GameAlias)(tg),
+// 	})
+// }
+
+// MakeGameBoardCartesian should produce a gameboard rotated 90 degrees for more intuitive json marshaling
+func MakeGameBoardCartesian(gb *GameBoard) GameBoard {
+	boardSize := len(*gb)
+	rotatedBoard := make(GameBoard, boardSize)
+
+	for i := range rotatedBoard {
+		rotatedBoard[i] = make([]Stack, boardSize)
+	}
+	for y := 0; y < boardSize; y++ {
+		for x := 0; x < boardSize; x++ {
+			rotatedBoard[y][(boardSize-x)-1] = (*gb)[x][y]
+		}
+	}
+	return rotatedBoard
 }

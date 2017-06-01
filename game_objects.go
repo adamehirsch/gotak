@@ -23,7 +23,7 @@ const (
 type Piece struct {
 	// one of "black" or "white"
 	Color string `json:"color"`
-	// Type can be one of "flat", "standing", or "capstone"
+	// Type can be one of "flat", "wall", or "capstone"
 	Orientation string `json:"orientation"`
 }
 
@@ -42,20 +42,42 @@ type Stack struct {
 	Pieces []Piece
 }
 
+// GameBoard is a representation of the Tak game board, containing Stacks
+type GameBoard [][]Stack
+
+// WinningPath shows the game coords making up a roadWin
+type WinningPath []Coords
+
+// Placement describes an action that places a new piece on the board
+type Placement struct {
+	Piece  Piece  `json:"piece"`
+	Coords string `json:"coords"`
+}
+
+// Movement describes an action that moves a stack.
+type Movement struct {
+	Coords    string `json:"coords"`
+	Direction string `json:"direction"`
+	Carry     int    `json:"carry"`
+	Drops     []int  `json:"drops"`
+}
+
 // TakPlayer describes a human player
 type TakPlayer struct {
 	Username     string      `json:"username"`
 	PlayerID     uuid.UUID   `json:"playerID"`
 	PlayedGames  []uuid.UUID `json:"playedGames"`
 	passwordHash []byte
-	// I don't like having to have the password exported. TODO: is this actually a problem? Password is explicitly not saved in the db store
-	Password string
+	Password     string `json:"password"`
 }
 
 // TakGame is the general object representing an entire game, including a board, an id, and some metadata.
 type TakGame struct {
-	GameID      uuid.UUID     `json:"gameID"`
-	GameBoard   [][]Stack     `json:"gameBoard"`
+	// the id for this game
+	GameID uuid.UUID `json:"gameID"`
+	// the gameboard for this game, represented as stacks of Pieces
+	GameBoard GameBoard `json:"gameBoard"`
+	// Boolean indicator of whose turn it is
 	IsBlackTurn bool          `json:"isBlackTurn"`
 	BlackWinner bool          `json:"blackWinner"`
 	WhiteWinner bool          `json:"whiteWinner"`
@@ -64,7 +86,7 @@ type TakGame struct {
 	DrawGame    bool          `json:"drawGame"`
 	GameOver    bool          `json:"gameOver"`
 	GameWinner  string        `json:"gameWinner"`
-	WinningPath []Coords      `json:"winningPath"`
+	WinningPath WinningPath   `json:"winningPath"`
 	StartTime   time.Time     `json:"startTime"`
 	WinTime     time.Time     `json:"winTime"`
 	BlackPlayer string        `json:"blackPlayer"`
@@ -111,27 +133,13 @@ var NumberToLetter = map[int]string{
 	7: "h",
 }
 
-// Placement describes an action that places a new piece on the board
-type Placement struct {
-	Piece  Piece  `json:"piece"`
-	Coords string `json:"coords"`
-}
-
-// Movement describes an action that moves a stack.
-type Movement struct {
-	Coords    string `json:"coords"`
-	Direction string `json:"direction"`
-	Carry     int    `json:"carry"`
-	Drops     []int  `json:"drops"`
-}
-
 // TakJWT is a simple struct to return JWTs in JSON
 type TakJWT struct {
 	JWT     string `json:"jwt"`
 	Message string `json:"message"`
 }
 
-// StackTops is a simple string to display a top-down view of the game (mostly useful for debugging)
+// StackTops is a slice of rows that displays a top-down view of the game (mostly useful for debugging)
 type StackTops struct {
 	TopView []string `json:"topView"`
 }

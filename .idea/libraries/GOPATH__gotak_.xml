@@ -1,0 +1,31 @@
+<component name="libraryTable">
+  <library name="GOPATH &lt;gotak&gt;">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/../sourcegraph.com" />
+      <root url="file://$PROJECT_DIR$/../adamprojects" />
+      <root url="file://$PROJECT_DIR$/../v2.staffjoy.com" />
+      <root url="file://$PROJECT_DIR$/../newTak" />
+      <root url="file://$PROJECT_DIR$/../github.com" />
+      <root url="file://$PROJECT_DIR$/../golang.org" />
+      <root url="file://$PROJECT_DIR$/../gotak-old" />
+      <root url="file://$PROJECT_DIR$/../gopkg.in" />
+      <root url="file://$PROJECT_DIR$/../goa-cellar" />
+      <root url="file://$PROJECT_DIR$/../sidecheck" />
+    </CLASSES>
+    <SOURCES>
+      <root url="file://$PROJECT_DIR$/../sourcegraph.com" />
+      <root url="file://$PROJECT_DIR$/../adamprojects" />
+      <root url="file://$PROJECT_DIR$/../v2.staffjoy.com" />
+      <root url="file://$PROJECT_DIR$/../newTak" />
+      <root url="file://$PROJECT_DIR$/../github.com" />
+      <root url="file://$PROJECT_DIR$/../golang.org" />
+      <root url="file://$PROJECT_DIR$/../gotak-old" />
+      <root url="file://$PROJECT_DIR$/../gopkg.in" />
+      <root url="file://$PROJECT_DIR$/../goa-cellar" />
+      <root url="file://$PROJECT_DIR$/../sidecheck" />
+    </SOURCES>
+    <excluded>
+      <root url="file://$PROJECT_DIR$" />
+    </excluded>
+  </library>
+</component>
