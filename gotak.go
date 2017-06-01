@@ -110,6 +110,7 @@ func main() {
 
 }
 
+// genRouter configures a new mux with a given DBenv behind it and returns the router -- having this as an explicit method lets unit testing use proper routing as well.
 func genRouter(env *DBenv) *mux.Router {
 	r := mux.NewRouter()
 	checkedChain := alice.New(checkJWTsignature.Handler)
@@ -121,7 +122,7 @@ func genRouter(env *DBenv) *mux.Router {
 
 	game := api.PathPrefix("/game").Subrouter()
 	game.Handle("/new/{boardSize}", checkedChain.Then(errorHandler(env.NewGame))).Methods("POST")
-	game.Handle("/{gameID}/", checkedChain.Then(errorHandler(env.ShowGame)))
+	game.Handle("/{gameID}/show", checkedChain.Then(errorHandler(env.ShowGame)))
 	game.Handle("/{gameID}/sit", checkedChain.Then(errorHandler(env.TakeSeat)))
 	game.Handle("/{gameID}/{action}", checkedChain.Then(errorHandler(env.Action))).Methods("POST")
 

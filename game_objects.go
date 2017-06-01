@@ -42,6 +42,12 @@ type Stack struct {
 	Pieces []Piece
 }
 
+// GameBoard is a representation of the Tak game board, containing Stacks
+type GameBoard [][]Stack
+
+// WinningPath shows the game coords making up a roadWin
+type WinningPath []Coords
+
 // Placement describes an action that places a new piece on the board
 type Placement struct {
 	Piece  Piece  `json:"piece"`
@@ -70,7 +76,7 @@ type TakGame struct {
 	// the id for this game
 	GameID uuid.UUID `json:"gameID"`
 	// the gameboard for this game, represented as stacks of Pieces
-	GameBoard [][]Stack `json:"gameBoard"`
+	GameBoard GameBoard `json:"gameBoard"`
 	// Boolean indicator of whose turn it is
 	IsBlackTurn bool          `json:"isBlackTurn"`
 	BlackWinner bool          `json:"blackWinner"`
@@ -80,7 +86,7 @@ type TakGame struct {
 	DrawGame    bool          `json:"drawGame"`
 	GameOver    bool          `json:"gameOver"`
 	GameWinner  string        `json:"gameWinner"`
-	WinningPath []Coords      `json:"winningPath"`
+	WinningPath WinningPath   `json:"winningPath"`
 	StartTime   time.Time     `json:"startTime"`
 	WinTime     time.Time     `json:"winTime"`
 	BlackPlayer string        `json:"blackPlayer"`

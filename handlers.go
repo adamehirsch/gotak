@@ -74,9 +74,8 @@ func (env *DBenv) NewGame(w http.ResponseWriter, r *http.Request) *WebError {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(newGame); err != nil {
-		log.Println(err)
-	}
+	gamePayload, _ := json.Marshal(newGame)
+	w.Write([]byte(gamePayload))
 
 	return nil
 }
@@ -114,7 +113,9 @@ func (env *DBenv) ShowGame(w http.ResponseWriter, r *http.Request) *WebError {
 			topView := requestedGame.DrawStackTops()
 			gamePayload, _ = json.Marshal(topView)
 		} else {
+			fmt.Printf("before: %+v\n\n", requestedGame)
 			gamePayload, _ = json.Marshal(requestedGame)
+			fmt.Printf("after: %+v\n\n", requestedGame)
 		}
 		w.Write([]byte(gamePayload))
 	} else {
@@ -371,4 +372,35 @@ type GameIDParam struct {
 	// gameID is useful
 	// in: path
 	GameID string `json:"gameID"`
+}
+
+// MarshalJSON is here to allow saner presentation via JSON methods
+// func (tg *TakGame) MarshalJSON() ([]byte, error) {
+// 	// copy the game so as to avoid recursively calling MarshalJSON
+// 	// thanks https://ashleyd.ws/custom-json-marshalling-in-golang/
+// 	type GameAlias TakGame
+//
+// 	return json.Marshal(&struct {
+// 		GameBoard GameBoard `json:"gameBoard"`
+// 		*GameAlias
+// 	}{
+// 		GameBoard: MakeGameBoardCartesian(&tg.GameBoard),
+// 		GameAlias: (*GameAlias)(tg),
+// 	})
+// }
+
+// MakeGameBoardCartesian should produce a gameboard rotated 90 degrees for more intuitive json marshaling
+func MakeGameBoardCartesian(gb *GameBoard) GameBoard {
+	boardSize := len(*gb)
+	rotatedBoard := make(GameBoard, boardSize)
+
+	for i := range rotatedBoard {
+		rotatedBoard[i] = make([]Stack, boardSize)
+	}
+	for y := 0; y < boardSize; y++ {
+		for x := 0; x < boardSize; x++ {
+			rotatedBoard[y][(boardSize-x)-1] = (*gb)[x][y]
+		}
+	}
+	return rotatedBoard
 }
